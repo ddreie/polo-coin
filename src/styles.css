@@ -299,6 +299,7 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
 .block.is-bad .block-body { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
 .block-amt.altered { color: var(--danger); text-decoration: underline wavy; text-underline-offset: 4px; }
 .recomputed { color: var(--danger); }
+.sim-note { font-size: .78rem; font-weight: 600; color: var(--danger); background: #fbe1df; border: 1px dashed var(--danger); border-radius: 4px; padding: 0 8px; }
 .payload { font-size: .8rem; color: var(--muted); }
 .payload summary { cursor: pointer; width: fit-content; }
 .payload code { display: block; margin-top: 6px; padding: 8px 10px; background: var(--chalk); border-radius: var(--radius-s); word-break: break-all; color: var(--ink); }

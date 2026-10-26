@@ -156,6 +156,9 @@ export default function Explorer({ signedIn }: { signedIn: boolean }) {
                         PC {money(b.amount)}{b.fee ? <small> + fee {money(b.fee)}</small> : null}
                       </span>
                     )}
+                    {tamper === b.block && (
+                      <span className="sim-note">Simulated change, originally PC {money(b.amount - 10000)}</span>
+                    )}
                     {c && (
                       <span className={`check ${bad ? 'check-bad' : 'check-ok'}`}>
                         {!c.hashOk ? 'Hash does not match contents' : !c.linkOk ? 'Link to previous block broken' : 'Verified'}
