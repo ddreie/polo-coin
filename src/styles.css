@@ -281,6 +281,28 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
 .block-flow code { color: var(--ink); }
 .block-hashes { display: flex; gap: 18px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
 
+.verify { display: flex; gap: 24px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-bottom: 24px; }
+.verify h2 { font-size: 1.15rem; margin-bottom: 4px; }
+.verify p { margin: 0; color: var(--muted); max-width: 70ch; font-size: .94rem; }
+.verify-text { flex: 1 1 380px; }
+.verify-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.verify-ok { border-left-color: var(--ok); }
+.verify-ok h2 { color: var(--ok); }
+.verify-bad { border-left-color: var(--danger); background: #fdf3f2; }
+.verify-bad h2 { color: var(--danger); }
+.check { font-size: .78rem; font-weight: 700; border-radius: 4px; padding: 1px 8px; }
+.check-ok { background: #e3f2ea; color: var(--ok); }
+.check-bad { background: #fbe1df; color: var(--danger); }
+.block.is-ok .block-no { background: var(--ok); }
+.block.is-bad .block-no { background: var(--danger); }
+.block.is-bad .block-body { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.block-amt.altered { color: var(--danger); text-decoration: underline wavy; text-underline-offset: 4px; }
+.recomputed { color: var(--danger); }
+.payload { font-size: .8rem; color: var(--muted); }
+.payload summary { cursor: pointer; width: fit-content; }
+.payload code { display: block; margin-top: 6px; padding: 8px 10px; background: var(--chalk); border-radius: var(--radius-s); word-break: break-all; color: var(--ink); }
+
 /* ---------- Toasts ---------- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 10px; z-index: 50; width: min(420px, calc(100vw - 32px)); }
 .toast { position: relative; background: var(--ink); color: var(--chalk); border-radius: 12px; padding: 14px 40px 14px 16px; border-left: 5px solid var(--celeste); animation: pop .25s ease-out; }

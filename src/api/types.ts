@@ -31,6 +31,8 @@ export interface Tx {
   amount: number;
   fee: number;
   memo?: string | null;
+  memo_hash?: string;
+  ts_us?: number;
   created_at: string;
 }
 

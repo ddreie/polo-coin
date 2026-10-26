@@ -1,11 +1,12 @@
 import type { Account, Api, Party, Stats, Tx } from './types';
+import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
 
 /**
  * In-browser implementation of the same rules as supabase/setup.sql.
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser.
  */
-const KEY = 'polo-coin-demo-v1';
+const KEY = 'polo-coin-demo-v2';
 const FEE_RATE = 0.01;
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.04;
@@ -19,10 +20,7 @@ interface State {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-async function sha256(s: string) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+const sha256 = sha256Hex;
 
 async function seed(): Promise<State> {
   const mk = async (id: number, username: string, display_name: string, role: Account['role'],
@@ -48,13 +46,16 @@ async function seed(): Promise<State> {
 
 async function append(s: State, kind: Tx['kind'], from: number | null, to: number | null,
   amount: number, fee: number, memo: string | null) {
-  const prev = s.ledger.length ? s.ledger[s.ledger.length - 1].tx_hash : '0'.repeat(64);
-  const created_at = new Date().toISOString();
+  const prev = s.ledger.length ? s.ledger[s.ledger.length - 1].tx_hash : GENESIS_PREV;
+  const now = Date.now();
+  const wallet = (id: number | null) => s.accounts.find((a) => a.id === id)?.wallet ?? null;
+  const base = {
+    prev_hash: prev, kind, from_wallet: wallet(from), to_wallet: wallet(to), amount, fee,
+    memo_hash: await sha256(memo ?? ''), ts_us: now * 1000,
+  };
   const tx: Tx = {
-    block: s.ledger.length + 1,
-    tx_hash: '0x' + (await sha256([prev, kind, from, to, amount, fee, memo, created_at].join('|'))),
-    prev_hash: prev, kind, from_id: from, to_id: to, amount, fee, memo, created_at,
-    from_wallet: null, to_wallet: null,
+    ...base, block: s.ledger.length + 1, tx_hash: await blockHash(base),
+    from_id: from, to_id: to, memo, created_at: new Date(now).toISOString(),
   };
   s.ledger.push(tx);
   return tx;

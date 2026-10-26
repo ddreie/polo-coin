@@ -65,6 +65,8 @@ create table polo.ledger (
   amount     numeric(14,2) not null default 0,
   fee        numeric(14,2) not null default 0,
   memo       text,
+  memo_hash  text not null,          -- sha256 of the reference; the reference itself stays private
+  ts_us      bigint not null,        -- timestamp in microseconds since 1970 (part of the hash)
   created_at timestamptz not null default now()
 );
 
@@ -105,19 +107,28 @@ begin
 end $$;
 
 -- Append a block to the hash-chained ledger.
+-- tx_hash = '0x' || sha256( prev_hash | kind | from_wallet | to_wallet | amount | fee | memo_hash | ts_us )
+-- Every field in that formula is public (api_explorer), so anyone can recompute and verify the chain.
 create function polo.append(p_kind text, p_from int, p_to int,
                             p_amount numeric, p_fee numeric, p_memo text)
 returns polo.ledger
 language plpgsql set search_path = '' as $$
 declare v_prev text; v_row polo.ledger; v_now timestamptz := clock_timestamp();
+        v_us bigint; v_memo_hash text; v_fw text; v_tw text;
 begin
   perform pg_advisory_xact_lock(424242);          -- serialise the chain
   select tx_hash into v_prev from polo.ledger order by block desc limit 1;
   v_prev := coalesce(v_prev, repeat('0', 64));
-  insert into polo.ledger (tx_hash, prev_hash, kind, from_id, to_id, amount, fee, memo, created_at)
-  values ('0x' || encode(extensions.digest(
-            concat_ws('|', v_prev, p_kind, p_from, p_to, p_amount, p_fee, p_memo, v_now), 'sha256'), 'hex'),
-          v_prev, p_kind, p_from, p_to, p_amount, p_fee, p_memo, v_now)
+  v_us := floor(extract(epoch from v_now) * 1000000)::bigint;
+  v_memo_hash := encode(extensions.digest(coalesce(p_memo, ''), 'sha256'), 'hex');
+  select wallet into v_fw from polo.accounts where id = p_from;
+  select wallet into v_tw from polo.accounts where id = p_to;
+  insert into polo.ledger (tx_hash, prev_hash, kind, from_id, to_id, amount, fee, memo, memo_hash, ts_us, created_at)
+  values ('0x' || encode(extensions.digest(concat_ws('|',
+            v_prev, p_kind, coalesce(v_fw, ''), coalesce(v_tw, ''),
+            round(p_amount, 2)::numeric(14,2)::text, round(p_fee, 2)::numeric(14,2)::text,
+            v_memo_hash, v_us::text), 'sha256'), 'hex'),
+          v_prev, p_kind, p_from, p_to, p_amount, p_fee, p_memo, v_memo_hash, v_us, v_now)
   returning * into v_row;
   return v_row;
 end $$;
@@ -294,8 +305,9 @@ language sql security definer set search_path = '' as $$
            'block', l.block, 'tx_hash', l.tx_hash, 'prev_hash', l.prev_hash, 'kind', l.kind,
            'from_wallet', (select wallet from polo.accounts where id = l.from_id),
            'to_wallet',   (select wallet from polo.accounts where id = l.to_id),
-           'amount', l.amount, 'fee', l.fee, 'created_at', l.created_at) order by l.block desc), '[]')
-    from (select * from polo.ledger order by block desc limit least(greatest(p_limit, 1), 200)) l
+           'amount', l.amount, 'fee', l.fee, 'memo_hash', l.memo_hash, 'ts_us', l.ts_us,
+           'created_at', l.created_at) order by l.block desc), '[]')
+    from (select * from polo.ledger order by block desc limit least(greatest(p_limit, 1), 2000)) l
 $$;
 
 -- Public proof of reserves.
