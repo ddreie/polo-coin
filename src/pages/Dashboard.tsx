@@ -1,0 +1,90 @@
+import { useCallback, useEffect, useState } from 'react';
+import { api, type Account, type Party, type Stats, type Tx } from '../api';
+import { Avatar, DemoBanner, Logo } from '../components/Brand';
+import ActionPanel from '../components/ActionPanel';
+import Activity from '../components/Activity';
+import RolePanel from '../components/RolePanel';
+import { money, roleLabel } from '../format';
+
+interface Props {
+  token: string;
+  account: Account;
+  setAccount: (a: Account) => void;
+  onLogout: (next?: 'login' | 'home') => void;
+}
+
+export default function Dashboard({ token, account, setAccount, onLogout }: Props) {
+  const [txs, setTxs] = useState<Tx[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [flash, setFlash] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [me, list, st] = await Promise.all([api.me(token), api.transactions(token, 100), api.stats()]);
+      setAccount(me); setTxs(list); setStats(st);
+    } catch (e) {
+      if (/session/i.test((e as Error).message)) onLogout('login');
+    }
+  }, [token, setAccount, onLogout]);
+
+  useEffect(() => {
+    refresh();
+    api.directory(token).then(setParties).catch(() => undefined);
+    const id = setInterval(refresh, 6000);   // picks up payments made in other windows
+    return () => clearInterval(id);
+  }, [token, refresh]);
+
+  const afterAction = useCallback(async () => {
+    await refresh();
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1200);
+  }, [refresh]);
+
+  return (
+    <div className="page app">
+      <DemoBanner />
+      <header className="topbar wrap">
+        <Logo />
+        <nav className="topnav">
+          <a href="#/explorer">Ledger</a>
+          <a href="#/login">Switch account</a>
+          <button className="linklike" onClick={() => onLogout('login')}>Log out</button>
+        </nav>
+      </header>
+
+      <main className="wrap dash">
+        <section className="whoami">
+          <Avatar name={account.display_name} role={account.role} size={56} />
+          <div>
+            <h1>{account.display_name}</h1>
+            <p className="muted">
+              {roleLabel[account.role]}, {account.org}, {account.country}.
+              KYC {account.kyc}. Wallet <code title={account.wallet}>{account.wallet.slice(0, 10)}…{account.wallet.slice(-4)}</code>
+            </p>
+          </div>
+        </section>
+
+        <section className={`balances${flash ? ' flash' : ''}`} aria-label="Balances">
+          <div className="bal bal-pc">
+            <span className="bal-label">Polo Coin</span>
+            <span className="bal-value"><span className="cur">PC</span>{money(account.pc)}</span>
+            <span className="bal-note">= USD {money(account.pc)}, backed 1:1</span>
+          </div>
+          <div className="bal bal-usd">
+            <span className="bal-label">{account.role === 'patron' ? 'Bank account (simulated)' : 'USD paid out to bank account'}</span>
+            <span className="bal-value"><span className="cur">USD</span>{money(account.usd)}</span>
+            <span className="bal-note">{account.role === 'patron' ? 'Use it to buy Polo Coin' : 'From PC redeemed at the partner bank'}</span>
+          </div>
+        </section>
+
+        <div className="dash-grid">
+          <ActionPanel token={token} account={account} parties={parties} onDone={afterAction} />
+          <RolePanel token={token} account={account} txs={txs} stats={stats} onReset={() => onLogout('login')} />
+        </div>
+
+        <Activity account={account} txs={txs} />
+      </main>
+    </div>
+  );
+}
