@@ -22,18 +22,29 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       TARGET: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+      HAS_TOKEN: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check secrets
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::notice::Skipped: add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID under Settings -> Secrets and variables -> Actions."
+      - uses: actions/checkout@v5
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v5
+        if: env.HAS_TOKEN == 'true'
         with:
           node-version: 22
       - name: Install Vercel CLI
+        if: env.HAS_TOKEN == 'true'
         run: npm install --global vercel@63.1.2
       - name: Pull project settings
+        if: env.HAS_TOKEN == 'true'
         run: vercel pull --yes --environment=$TARGET --token=${{ secrets.VERCEL_TOKEN }}
       - name: Build
+        if: env.HAS_TOKEN == 'true'
         run: vercel build $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy
+        if: env.HAS_TOKEN == 'true'
         id: deploy
         run: |
           url=$(vercel deploy --prebuilt $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }})
