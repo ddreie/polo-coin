@@ -75,6 +75,14 @@ create table polo.config (
   reserve_yield numeric not null default 0.04    -- assumed yield on USD reserve (T-bills)
 );
 
+-- Row Level Security as a second safety net. The schema is not exposed to the
+-- API anyway; the api_* functions run as table owner and are not affected.
+alter table polo.accounts enable row level security;
+alter table polo.sessions enable row level security;
+alter table polo.reserve  enable row level security;
+alter table polo.ledger   enable row level security;
+alter table polo.config   enable row level security;
+
 -- ---------------------------------------------------------------------
 -- Internal helpers (not callable from the website)
 -- ---------------------------------------------------------------------
@@ -212,7 +220,7 @@ begin
     raise exception 'Insufficient USD balance (available: %).', a.usd;
   end if;
   update polo.accounts set usd = usd - v_amt, pc = pc + v_amt where id = v_id;
-  update polo.reserve set usd = usd + v_amt;
+  update polo.reserve set usd = usd + v_amt where id;
   t := polo.append('mint', null, v_id, v_amt, 0, 'USD deposited into reserve, PC minted');
   return polo.tx_json(t);
 end $$;
@@ -261,7 +269,7 @@ begin
     raise exception 'Insufficient PC balance (available: %).', a.pc;
   end if;
   update polo.accounts set pc = pc - v_amt, usd = usd + v_amt where id = v_id;
-  update polo.reserve set usd = usd - v_amt;
+  update polo.reserve set usd = usd - v_amt where id;
   t := polo.append('redeem', v_id, v_bank, v_amt, 0, 'PC burned, USD paid out by partner bank');
   return polo.tx_json(t);
 end $$;
