@@ -12,6 +12,7 @@ unless they write in another language; the website itself is in English.
 | Frontend | `src/` – React + TypeScript (Vite) | Hosted on Vercel, project `polo-coin`, live at https://polo-coin-eight.vercel.app |
 | Backend | `supabase/setup.sql` – Postgres functions `api_*` | Supabase project id `fllxsypsclizpjpypnqv`. All tables live in the private schema `polo`; the browser only calls `api_*` via RPC. Custom session tokens, not Supabase Auth. |
 | Ledger | `polo.ledger`, `src/verify.ts` | Hash chain: `tx_hash = '0x' || sha256(prev_hash|kind|from_wallet|to_wallet|amount|fee|memo_hash|ts_us)`. `polo.append()` in SQL and `blockPayload()` in `src/verify.ts` must stay identical, or "Verify chain" flags every block. |
+| Deploy | `.github/workflows/deploy.yml` | GitHub Actions deploys every push with Dario's Vercel token (repo is private; Vercel's own Git deploys are switched off in `vercel.json`). `main` = production, other branches = preview URL in the Actions run summary. |
 | Keep-alive | `.github/workflows/keepalive.yml` | Pings `api_ping` every 3 days so the free Supabase project never pauses. |
 | Offline mode | `src/api/localApi.ts` | `npm run dev:demo` runs the same rules in the browser without Supabase. Keep it in sync with the SQL rules. |
 
@@ -28,8 +29,8 @@ Demo accounts: `patron`, `pro`, `breeder`, `bank`, `admin`, password `polo2026` 
    then run it on the Supabase project with the Supabase connector (`execute_sql`). Re-running it **resets all
    demo data** – tell the user before doing so. Small, data-preserving changes (e.g. `create or replace
    function`) can be run on their own, but must also be added to `setup.sql`.
-4. Commit with a clear message and push to `main`. Vercel deploys automatically in about a minute.
-   For larger redesigns, push to a branch first: Vercel builds a preview URL the user can check before merging.
+4. Commit with a clear message and push to `main`. The GitHub Action deploys it in about two minutes.
+   For larger redesigns, push to a branch first: the Action deploys a preview URL the user can check before merging.
 5. After testing on the live site, reset the demo (`select polo.seed();` via the connector) so the next person
    and the professor start clean.
 

@@ -33,6 +33,7 @@ Invariante: USD-Reserve = PC im Umlauf (100 % Deckung). Jede Transaktion ist ein
 | Frontend | React + TypeScript (Vite), gehostet auf Vercel | Landingpage, Login, Dashboards pro Rolle, öffentlicher Ledger |
 | API | Postgres-Funktionen (`api_*`) via Supabase RPC | Login, Kauf, Transfer, Auszahlung, Statistiken. Jede Funktion prüft das Session-Token und läuft als atomare Transaktion. |
 | Datenbank | Supabase Postgres, Schema `polo` | Accounts, Sessions, Reserve, Ledger. Das Schema ist von aussen nicht erreichbar, nur über die API-Funktionen. |
+| Deployment | GitHub Actions + Vercel | Jede Änderung auf GitHub wird automatisch veröffentlicht (`main` = Live-Seite, andere Branches = Vorschau) |
 | Keep-alive | GitHub Actions | Ruft alle 3 Tage `api_ping` auf, damit das Gratis-Projekt nicht pausiert |
 
 Die Blockchain wird simuliert (zentrale Datenbank mit Hash-Kette). In einer echten Umsetzung würde der Ledger auf einer öffentlichen Chain laufen (Token-Contract), siehe Kapitel „Solution design“ der Arbeit.
@@ -59,6 +60,6 @@ npm run dev:demo   # ohne Datenbank, Daten im Browser (zum Entwickeln)
 
 1. Supabase: Inhalt von `supabase/setup.sql` im SQL Editor einfügen und auf „Run“ klicken. Das Skript kann jederzeit erneut ausgeführt werden, dann ist alles zurückgesetzt.
 2. GitHub: Code in ein Repository hochladen.
-3. Vercel: „Add New → Project“, das Repository importieren, „Deploy“. Es braucht keine weiteren Einstellungen, die Supabase-URL und der öffentliche Key stehen in `src/config.ts`.
+3. Vercel: Projekt anlegen. Veröffentlicht wird über GitHub Actions (`.github/workflows/deploy.yml`) mit den Repository-Secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` und `VERCEL_PROJECT_ID`. Die Supabase-URL und der öffentliche Key stehen in `src/config.ts`.
 
 Der „publishable key“ in `src/config.ts` ist öffentlich und darf im Code stehen. Den geheimen `service_role`-Key nie in den Code oder ins Repository legen.

@@ -1,0 +1,42 @@
+# Deploys every push to Vercel with Dario's Vercel token, so pushes from all team
+# members go live even though the repository is private (Vercel's free plan would
+# otherwise block deployments of commits that do not come from the account owner).
+# main -> production (https://polo-coin-eight.vercel.app), any other branch -> preview URL.
+#
+# Needs three repository secrets (Settings -> Secrets and variables -> Actions):
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+name: Deploy to Vercel
+
+on:
+  push:
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TARGET: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Vercel CLI
+        run: npm install --global vercel@63.1.2
+      - name: Pull project settings
+        run: vercel pull --yes --environment=$TARGET --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt $([ "$TARGET" = production ] && echo --prod) --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Deployed ($TARGET)" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
