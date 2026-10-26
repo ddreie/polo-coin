@@ -3,8 +3,8 @@
 # otherwise block deployments of commits that do not come from the account owner).
 # main -> production (https://polo-coin-eight.vercel.app), any other branch -> preview URL.
 #
-# Needs three repository secrets (Settings -> Secrets and variables -> Actions):
-#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Needs one repository secret (Settings -> Secrets and variables -> Actions): VERCEL_TOKEN.
+# VERCEL_ORG_ID / VERCEL_PROJECT_ID are optional; if missing they are looked up for project "polo-coin".
 name: Deploy to Vercel
 
 on:
@@ -22,18 +22,27 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       TARGET: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
-      HAS_TOKEN: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
+      VERCEL_PROJECT_NAME: polo-coin
+      HAS_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
       - name: Check secrets
         if: env.HAS_TOKEN != 'true'
         run: |
-          echo "::notice::Skipped: add VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID under Settings -> Secrets and variables -> Actions."
+          echo "::notice::Skipped: add the VERCEL_TOKEN secret under Settings -> Secrets and variables -> Actions."
       - uses: actions/checkout@v5
         if: env.HAS_TOKEN == 'true'
       - uses: actions/setup-node@v5
         if: env.HAS_TOKEN == 'true'
         with:
           node-version: 22
+      - name: Look up Vercel project and team id
+        if: env.HAS_TOKEN == 'true' && (env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '')
+        run: |
+          res=$(curl -fsS -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_NAME") \
+            || { echo "::error::Could not read Vercel project '$VERCEL_PROJECT_NAME' with this token."; exit 1; }
+          echo "VERCEL_PROJECT_ID=$(echo "$res" | jq -r .id)" >> "$GITHUB_ENV"
+          echo "VERCEL_ORG_ID=$(echo "$res" | jq -r .accountId)" >> "$GITHUB_ENV"
+          echo "Found project $(echo "$res" | jq -r .id) in $(echo "$res" | jq -r .accountId)"
       - name: Install Vercel CLI
         if: env.HAS_TOKEN == 'true'
         run: npm install --global vercel@63.1.2

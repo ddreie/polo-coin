@@ -60,6 +60,6 @@ npm run dev:demo   # ohne Datenbank, Daten im Browser (zum Entwickeln)
 
 1. Supabase: Inhalt von `supabase/setup.sql` im SQL Editor einfügen und auf „Run“ klicken. Das Skript kann jederzeit erneut ausgeführt werden, dann ist alles zurückgesetzt.
 2. GitHub: Code in ein Repository hochladen.
-3. Vercel: Projekt anlegen. Veröffentlicht wird über GitHub Actions (`.github/workflows/deploy.yml`) mit den Repository-Secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` und `VERCEL_PROJECT_ID`. Die Supabase-URL und der öffentliche Key stehen in `src/config.ts`.
+3. Vercel: Projekt anlegen. Veröffentlicht wird über GitHub Actions (`.github/workflows/deploy.yml`) mit dem Repository-Secret `VERCEL_TOKEN`. Die Supabase-URL und der öffentliche Key stehen in `src/config.ts`.
 
 Der „publishable key“ in `src/config.ts` ist öffentlich und darf im Code stehen. Den geheimen `service_role`-Key nie in den Code oder ins Repository legen.
