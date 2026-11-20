@@ -19,6 +19,10 @@
 --   * Buying PC (mint) and redeeming PC at the partner bank (burn) are free.
 --   * Transfers cost 1 %, paid by the sender, split 50/50 between the
 --     Polo Coin treasury and the partner bank.
+--   * KYC: new users sign up with status 'pending'. They can log in but
+--     cannot buy, send, receive or cash out until the treasury (any
+--     applicant) or the partner bank (applicants from Argentina) verifies
+--     them. No anonymous wallets.
 -- =====================================================================
 
 create extension if not exists pgcrypto with schema extensions;
@@ -39,7 +43,10 @@ create table polo.accounts (
   org           text not null,
   country       text not null,
   wallet        text unique not null,
-  kyc           text not null default 'verified',
+  kyc           text not null default 'pending' check (kyc in ('pending','verified','rejected')),
+  kyc_by        int references polo.accounts(id),      -- who verified or rejected the applicant
+  kyc_at        timestamptz,
+  created_at    timestamptz not null default now(),
   usd           numeric(14,2) not null default 0 check (usd >= 0),
   pc            numeric(14,2) not null default 0 check (pc >= 0)
 );
@@ -106,6 +113,20 @@ begin
   return v_id;
 end $$;
 
+-- Like polo.auth, but the account must also have passed KYC.
+create function polo.auth_verified(p_token uuid) returns int
+language plpgsql set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_kyc text;
+begin
+  select kyc into v_kyc from polo.accounts where id = v_id;
+  if v_kyc = 'pending' then
+    raise exception 'Your identity check (KYC) is still pending. You can use Polo Coin once it is verified.';
+  elsif v_kyc <> 'verified' then
+    raise exception 'Your KYC application was rejected. This account cannot use Polo Coin.';
+  end if;
+  return v_id;
+end $$;
+
 -- Append a block to the hash-chained ledger.
 -- tx_hash = '0x' || sha256( prev_hash | kind | from_wallet | to_wallet | amount | fee | memo_hash | ts_us )
 -- Every field in that formula is public (api_explorer), so anyone can recompute and verify the chain.
@@ -149,7 +170,9 @@ create function polo.account_json(a polo.accounts) returns json
 language sql stable set search_path = '' as $$
   select json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name,
     'role', a.role, 'org', a.org, 'country', a.country, 'wallet', a.wallet,
-    'kyc', a.kyc, 'usd', a.usd, 'pc', a.pc)
+    'kyc', a.kyc, 'kyc_at', a.kyc_at,
+    'kyc_by_name', (select display_name from polo.accounts where id = a.kyc_by),
+    'usd', a.usd, 'pc', a.pc)
 $$;
 
 create function polo.tx_json(l polo.ledger) returns json
@@ -172,12 +195,16 @@ begin
   truncate polo.sessions, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
   insert into polo.config default values;
   insert into polo.reserve (usd) values (0);
-  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc) values
-    ('patron',  v_pw, 'James Whitfield',  'patron',  'Team Blue Oak',          'United Kingdom', polo.wallet_of('patron'),  250000, 0),
-    ('pro',     v_pw, 'Facundo Ríos',     'pro',     '7-goal professional',    'Argentina',      polo.wallet_of('pro'),          0, 0),
-    ('breeder', v_pw, 'Estancia La Aurora','breeder','Polo pony breeder',      'Argentina',      polo.wallet_of('breeder'),      0, 0),
-    ('bank',    v_pw, 'Banco Pampa Sur',  'bank',    'Partner bank (fictional)','Argentina',     polo.wallet_of('bank'),         0, 0),
-    ('admin',   v_pw, 'Polo Coin Treasury','admin',  'Issuer & reserve manager','Switzerland',   polo.wallet_of('admin'),        0, 0);
+  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc) values
+    ('patron',  v_pw, 'James Whitfield',  'patron',  'Team Blue Oak',          'United Kingdom', polo.wallet_of('patron'),  250000, 0, 'verified'),
+    ('pro',     v_pw, 'Facundo Ríos',     'pro',     '7-goal professional',    'Argentina',      polo.wallet_of('pro'),          0, 0, 'verified'),
+    ('breeder', v_pw, 'Estancia La Aurora','breeder','Polo pony breeder',      'Argentina',      polo.wallet_of('breeder'),      0, 0, 'verified'),
+    ('bank',    v_pw, 'Banco Pampa Sur',  'bank',    'Partner bank (fictional)','Argentina',     polo.wallet_of('bank'),         0, 0, 'verified'),
+    ('admin',   v_pw, 'Polo Coin Treasury','admin',  'Issuer & reserve manager','Switzerland',   polo.wallet_of('admin'),        0, 0, 'verified');
+  -- Two open sign-up applications, so the KYC review can be shown right away.
+  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc, created_at) values
+    ('charlotte', v_pw, 'Charlotte Hayes',    'patron', 'Team Hollow Creek',     'United States', polo.wallet_of('charlotte'), 100000, 0, 'pending', now() - interval '2 hours'),
+    ('valentina', v_pw, 'Valentina Arrieta',  'pro',    '4-goal professional',   'Argentina',     polo.wallet_of('valentina'),      0, 0, 'pending', now() - interval '25 minutes');
   perform polo.append('genesis', null, null, 0, 0, 'Polo Coin genesis block');
 end $$;
 
@@ -217,13 +244,13 @@ begin
   perform polo.auth(p_token);
   return (select coalesce(json_agg(json_build_object('id', id, 'display_name', display_name,
             'role', role, 'org', org, 'country', country, 'wallet', wallet) order by id), '[]')
-          from polo.accounts);
+          from polo.accounts where kyc = 'verified');
 end $$;
 
 -- Patron buys PC with USD from his bank account (mint, 1:1, free).
 create or replace function public.api_buy(p_token uuid, p_amount numeric) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth(p_token); v_amt numeric := polo.check_amount(p_amount);
+declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
         a polo.accounts; t polo.ledger;
 begin
   select * into a from polo.accounts where id = v_id for update;
@@ -239,13 +266,16 @@ end $$;
 -- Send PC to another wallet. Sender pays amount + 1 % fee.
 create or replace function public.api_transfer(p_token uuid, p_to int, p_amount numeric, p_memo text) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth(p_token); v_amt numeric := polo.check_amount(p_amount);
+declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
         c polo.config; v_fee numeric; v_bank_fee numeric; v_bank int; v_admin int;
         a polo.accounts; t polo.ledger;
 begin
   if p_to = v_id then raise exception 'You cannot send PC to yourself.'; end if;
   if not exists (select 1 from polo.accounts where id = p_to) then
     raise exception 'Recipient not found.';
+  end if;
+  if not exists (select 1 from polo.accounts where id = p_to and kyc = 'verified') then
+    raise exception 'The recipient has not passed KYC yet and cannot receive PC.';
   end if;
   select * into c from polo.config;
   v_fee := round(v_amt * c.fee_rate, 2);
@@ -271,7 +301,7 @@ end $$;
 -- Redeem PC for USD at the partner bank (burn, 1:1, free).
 create or replace function public.api_redeem(p_token uuid, p_amount numeric) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth(p_token); v_amt numeric := polo.check_amount(p_amount);
+declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
         v_bank int; a polo.accounts; t polo.ledger;
 begin
   select id into v_bank from polo.accounts where role = 'bank' order by id limit 1;
@@ -329,6 +359,98 @@ language sql security definer set search_path = '' as $$
                                from polo.ledger) x)
   )
 $$;
+
+-- ---------------------------------------------------------------------
+-- Sign-up and KYC review
+-- ---------------------------------------------------------------------
+
+-- Open a new account. It starts with KYC 'pending' and is logged in right away.
+-- New patrons get a simulated bank account with USD 100,000 to buy PC with.
+create or replace function public.api_register(p_username text, p_password text, p_display_name text,
+                                               p_role text, p_org text, p_country text) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_user text := lower(trim(p_username)); v_name text := trim(p_display_name);
+        v_org text := coalesce(nullif(trim(p_org), ''), '—'); v_country text := trim(p_country);
+        a polo.accounts; v_token uuid;
+begin
+  if v_user !~ '^[a-z0-9_]{3,20}$' then
+    raise exception 'Username: 3 to 20 characters, only letters, digits and _.';
+  end if;
+  if length(coalesce(p_password, '')) < 6 then
+    raise exception 'Password: at least 6 characters.';
+  end if;
+  if length(coalesce(v_name, '')) < 2 or length(v_name) > 60 then
+    raise exception 'Please enter your full name (max. 60 characters).';
+  end if;
+  if p_role not in ('patron','pro','breeder') then
+    raise exception 'Choose patron, professional player or breeder.';
+  end if;
+  if length(coalesce(v_country, '')) < 2 or length(v_country) > 40 or length(v_org) > 60 then
+    raise exception 'Please enter a country (and an organisation of max. 60 characters).';
+  end if;
+  if exists (select 1 from polo.accounts where username = v_user) then
+    raise exception 'This username is taken. Please choose another one.';
+  end if;
+  if (select count(*) from polo.accounts) >= 200 then
+    raise exception 'Demo limit reached. Ask the treasury to reset the demo.';
+  end if;
+  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc)
+  values (v_user, extensions.crypt(p_password, extensions.gen_salt('bf')), v_name, p_role, v_org, v_country,
+          polo.wallet_of(v_user || ':' || gen_random_uuid()::text),
+          case when p_role = 'patron' then 100000 else 0 end, 0, 'pending')
+  returning * into a;
+  insert into polo.sessions (account_id) values (a.id) returning token into v_token;
+  return json_build_object('token', v_token, 'account', polo.account_json(a));
+end $$;
+
+-- Who may review whom: the treasury reviews everyone, the partner bank reviews applicants from Argentina.
+create function polo.can_review(p_reviewer polo.accounts, p_applicant polo.accounts) returns boolean
+language sql stable set search_path = '' as $$
+  select p_applicant.role not in ('bank','admin')
+     and (p_reviewer.role = 'admin' or (p_reviewer.role = 'bank' and p_applicant.country = 'Argentina'))
+$$;
+
+-- Open applications plus the latest decisions, for treasury and partner bank.
+create or replace function public.api_kyc_queue(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare r polo.accounts;
+begin
+  select * into r from polo.accounts where id = polo.auth(p_token);
+  if r.role not in ('admin','bank') then
+    raise exception 'Only the treasury and the partner bank review KYC applications.';
+  end if;
+  return (select coalesce(json_agg(json_build_object(
+            'id', a.id, 'username', a.username, 'display_name', a.display_name, 'role', a.role,
+            'org', a.org, 'country', a.country, 'wallet', a.wallet, 'kyc', a.kyc,
+            'created_at', a.created_at, 'kyc_at', a.kyc_at,
+            'kyc_by_name', (select display_name from polo.accounts where id = a.kyc_by))
+          order by (a.kyc = 'pending') desc, coalesce(a.kyc_at, a.created_at) desc), '[]')
+          from (select * from polo.accounts a
+                 where polo.can_review(r, a)
+                   and (a.kyc = 'pending' or a.kyc_by is not null)
+                 order by (a.kyc = 'pending') desc, coalesce(a.kyc_at, a.created_at) desc
+                 limit 50) a);
+end $$;
+
+-- Verify or reject a pending applicant.
+create or replace function public.api_kyc_decide(p_token uuid, p_account int, p_approve boolean) returns json
+language plpgsql security definer set search_path = '' as $$
+declare r polo.accounts; a polo.accounts;
+begin
+  select * into r from polo.accounts where id = polo.auth(p_token);
+  select * into a from polo.accounts where id = p_account for update;
+  if a.id is null then raise exception 'Applicant not found.'; end if;
+  if not polo.can_review(r, a) then
+    raise exception 'You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone.';
+  end if;
+  if a.kyc <> 'pending' then
+    raise exception '% has already been %.', a.display_name, a.kyc;
+  end if;
+  update polo.accounts
+     set kyc = case when p_approve then 'verified' else 'rejected' end, kyc_by = r.id, kyc_at = now()
+   where id = a.id returning * into a;
+  return polo.account_json(a);
+end $$;
 
 -- Admin only: reset the demo to its initial state.
 create or replace function public.api_reset(p_token uuid) returns void

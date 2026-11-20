@@ -2,16 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, type Account } from './api';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import { ToastHost } from './components/Toast';
 
-type Route = 'home' | 'login' | 'app' | 'explorer';
+type Route = 'home' | 'login' | 'register' | 'app' | 'explorer';
 const TOKEN_KEY = 'polo-coin-token';
 
 const readRoute = (): Route => {
   const h = window.location.hash.replace(/^#\/?/, '').split('?')[0];
-  return (['login', 'app', 'explorer'] as Route[]).includes(h as Route) ? (h as Route) : 'home';
+  return (['login', 'register', 'app', 'explorer'] as Route[]).includes(h as Route) ? (h as Route) : 'home';
 };
 export const go = (r: Route) => { window.location.hash = r === 'home' ? '/' : `/${r}`; };
 
@@ -54,6 +55,7 @@ export default function App() {
   let page;
   if (route === 'explorer') page = <Explorer signedIn={!!account} />;
   else if (route === 'login') page = <Login onLogin={onLogin} current={account} />;
+  else if (route === 'register') page = <Register onLogin={onLogin} />;
   else if (route === 'app') {
     if (checking) page = <div className="loading-screen">Loading your wallet…</div>;
     else if (token && account) page = <Dashboard token={token} account={account} setAccount={setAccount} onLogout={onLogout} />;

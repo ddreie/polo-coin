@@ -1,4 +1,5 @@
 export type Role = 'patron' | 'pro' | 'breeder' | 'bank' | 'admin';
+export type Kyc = 'pending' | 'verified' | 'rejected';
 
 export interface Account {
   id: number;
@@ -8,12 +9,32 @@ export interface Account {
   org: string;
   country: string;
   wallet: string;
-  kyc: string;
+  kyc: Kyc;
+  kyc_at?: string | null;
+  kyc_by_name?: string | null;
   usd: number;
   pc: number;
 }
 
 export type Party = Pick<Account, 'id' | 'display_name' | 'role' | 'org' | 'country' | 'wallet'>;
+
+/** A sign-up as seen by the treasury or the partner bank in the KYC review. */
+export interface Applicant extends Party {
+  username: string;
+  kyc: Kyc;
+  created_at: string;
+  kyc_at: string | null;
+  kyc_by_name: string | null;
+}
+
+export interface SignUp {
+  username: string;
+  password: string;
+  display_name: string;
+  role: 'patron' | 'pro' | 'breeder';
+  org: string;
+  country: string;
+}
 
 export type TxKind = 'genesis' | 'mint' | 'transfer' | 'redeem';
 
@@ -54,6 +75,7 @@ export interface Stats {
 export interface Api {
   mode: 'supabase' | 'local';
   login(username: string, password: string): Promise<{ token: string; account: Account }>;
+  register(form: SignUp): Promise<{ token: string; account: Account }>;
   logout(token: string): Promise<void>;
   me(token: string): Promise<Account>;
   directory(token: string): Promise<Party[]>;
@@ -64,4 +86,7 @@ export interface Api {
   explorer(limit?: number): Promise<Tx[]>;
   stats(): Promise<Stats>;
   reset(token: string): Promise<void>;
+  /** Treasury: all applicants. Partner bank: applicants from Argentina. */
+  kycQueue(token: string): Promise<Applicant[]>;
+  kycDecide(token: string, account: number, approve: boolean): Promise<Account>;
 }

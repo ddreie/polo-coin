@@ -74,7 +74,10 @@ export default function Home({ signedIn }: { signedIn: boolean }) {
             Five demo accounts are ready: a patron, a player, a breeder, the partner bank and the treasury.
             Log in as the patron, pay the player, then log in as the player to see the money arrive.
           </p>
-          <a className="btn" href="#/login">Choose a demo account</a>
+          <div className="hero-actions">
+            <a className="btn" href="#/login">Choose a demo account</a>
+            <a className="btn btn-ghost" href="#/register">Open your own account</a>
+          </div>
         </section>
       </main>
 

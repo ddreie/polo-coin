@@ -14,6 +14,8 @@ Passwort für alle: `polo2026`
 | `bank` | Banco Pampa Sur | Partnerbank, AR | 0 |
 | `admin` | Polo Coin Treasury | Emittent, CH | 0, kann die Demo zurücksetzen |
 
+Zusätzlich gibt es zwei offene Anmeldungen, damit die KYC-Prüfung sofort gezeigt werden kann: `charlotte` (Charlotte Hayes, Patronin, USA) und `valentina` (Valentina Arrieta, Spielerin, AR), ebenfalls mit `polo2026`.
+
 Typischer Ablauf: Als Patron PC kaufen, dem Spieler das Turniersalär schicken. Danach als Spieler einloggen, das Geld ist da. Weiter an den Breeder zahlen oder bei der Partnerbank in USD auszahlen. Bank und Treasury sehen alle Transaktionen, Reserve und Gebühreneinnahmen.
 
 ## Geschäftsregeln
@@ -23,6 +25,10 @@ Typischer Ablauf: Als Patron PC kaufen, dem Spieler das Turniersalär schicken. 
 | Kauf (Mint) | USD vom Bankkonto in die Reserve, gleich viel PC wird ausgegeben | keine |
 | Transfer | PC von Wallet zu Wallet, sofort | 1 % vom Sender, 50 % an Treasury, 50 % an Partnerbank |
 | Auszahlung (Burn) | PC wird vernichtet, USD aus der Reserve aufs Bankkonto | keine |
+
+## Registrierung und KYC
+
+Neue Nutzer können sich über „Open an account“ selbst registrieren (Patron, Spieler oder Breeder). Das Konto ist danach „pending“: Man kann sich einloggen, aber weder kaufen, senden, empfangen noch auszahlen. Die Treasury (`admin`) prüft alle Anmeldungen, die Partnerbank (`bank`) die Anmeldungen aus Argentinien. Beide sehen dazu im Dashboard die Liste „Identity checks (KYC)“ mit „Verify“ und „Reject“. Damit zeigt der Prototyp, dass es keine anonymen Wallets gibt (FINMA-Aufsichtsmitteilung 06/2024: der Emittent muss alle Halter identifizieren). Neue Patrons starten mit einem simulierten Bankkonto von USD 100'000. Ein Reset der Demo löscht alle selbst registrierten Konten.
 
 Invariante: USD-Reserve = PC im Umlauf (100 % Deckung). Jede Transaktion ist ein Block mit SHA-256-Hash, der den Hash des vorherigen Blocks enthält (Hash-Kette wie bei einer Blockchain).
 
@@ -43,8 +49,8 @@ Die Blockchain wird simuliert (zentrale Datenbank mit Hash-Kette). In einer echt
 ```
 supabase/setup.sql      Datenbank: Tabellen, Regeln, API-Funktionen, Demo-Daten
 src/api/                Zugriff auf die API (Supabase) und lokaler Demo-Modus
-src/pages/              Home, Login, Dashboard, Explorer
-src/components/         Aktionen (Kaufen/Senden/Auszahlen), Rollen-Panels, Aktivität
+src/pages/              Home, Login, Registrierung, Dashboard, Explorer
+src/components/         Aktionen (Kaufen/Senden/Auszahlen), Rollen-Panels, KYC, Aktivität
 .github/workflows/      Keep-alive für Supabase
 ```
 

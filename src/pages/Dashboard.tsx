@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Account, type Party, type Stats, type Tx } from '../api';
 import { Avatar, DemoBanner, Logo } from '../components/Brand';
 import ActionPanel from '../components/ActionPanel';
 import Activity from '../components/Activity';
 import RolePanel from '../components/RolePanel';
+import { KycBadge, KycReview, KycStatus } from '../components/Kyc';
+import { toast } from '../components/Toast';
 import { money, roleLabel } from '../format';
 
 interface Props {
@@ -18,6 +20,19 @@ export default function Dashboard({ token, account, setAccount, onLogout }: Prop
   const [parties, setParties] = useState<Party[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [flash, setFlash] = useState(false);
+  const lastKyc = useRef(account.kyc);
+  const verified = account.kyc === 'verified';
+
+  // Tell a pending user when the reviewer has decided (the dashboard polls every few seconds).
+  useEffect(() => {
+    if (lastKyc.current === 'pending' && account.kyc === 'verified') {
+      toast.ok('Identity verified', `${account.kyc_by_name ?? 'The reviewer'} verified your account. You can now use Polo Coin.`);
+      api.directory(token).then(setParties).catch(() => undefined);
+    } else if (lastKyc.current === 'pending' && account.kyc === 'rejected') {
+      toast.error('Application rejected', 'Your identity could not be verified.');
+    }
+    lastKyc.current = account.kyc;
+  }, [account.kyc, account.kyc_by_name, token]);
 
   const refresh = useCallback(async () => {
     try {
@@ -60,7 +75,8 @@ export default function Dashboard({ token, account, setAccount, onLogout }: Prop
             <h1>{account.display_name}</h1>
             <p className="muted">
               {roleLabel[account.role]}, {account.org}, {account.country}.
-              KYC {account.kyc}. Wallet <code title={account.wallet}>{account.wallet.slice(0, 10)}…{account.wallet.slice(-4)}</code>
+              Wallet <code title={account.wallet}>{account.wallet.slice(0, 10)}…{account.wallet.slice(-4)}</code>
+              {' '}<KycBadge kyc={account.kyc} />
             </p>
           </div>
         </section>
@@ -79,9 +95,13 @@ export default function Dashboard({ token, account, setAccount, onLogout }: Prop
         </section>
 
         <div className="dash-grid">
-          <ActionPanel token={token} account={account} parties={parties} onDone={afterAction} />
+          {verified
+            ? <ActionPanel token={token} account={account} parties={parties} onDone={afterAction} />
+            : <KycStatus account={account} />}
           <RolePanel token={token} account={account} txs={txs} stats={stats} onReset={() => onLogout('login')} />
         </div>
+
+        {(account.role === 'admin' || account.role === 'bank') && <KycReview token={token} account={account} />}
 
         <Activity account={account} txs={txs} />
       </main>

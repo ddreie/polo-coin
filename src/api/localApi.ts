@@ -1,4 +1,4 @@
-import type { Account, Api, Party, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Party, Stats, Tx } from './types';
 import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
 
 /**
@@ -6,13 +6,15 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser.
  */
-const KEY = 'polo-coin-demo-v2';
+const KEY = 'polo-coin-demo-v3';
 const FEE_RATE = 0.01;
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.04;
 
+type Stored = Account & { password: string; created_at: string; kyc_by: number | null };
+
 interface State {
-  accounts: (Account & { password: string })[];
+  accounts: Stored[];
   sessions: Record<string, number>;
   reserve: number;
   ledger: Tx[];
@@ -24,9 +26,10 @@ const sha256 = sha256Hex;
 
 async function seed(): Promise<State> {
   const mk = async (id: number, username: string, display_name: string, role: Account['role'],
-    org: string, country: string, usd: number) => ({
-    id, username, display_name, role, org, country, usd, pc: 0, kyc: 'verified', password: 'polo2026',
+    org: string, country: string, usd: number, kyc: Account['kyc'] = 'verified', ageMin = 0): Promise<Stored> => ({
+    id, username, display_name, role, org, country, usd, pc: 0, kyc, password: 'polo2026',
     wallet: '0x' + (await sha256(username)).slice(0, 40),
+    created_at: new Date(Date.now() - ageMin * 60000).toISOString(), kyc_by: null, kyc_at: null,
   });
   const s: State = {
     accounts: [
@@ -35,6 +38,9 @@ async function seed(): Promise<State> {
       await mk(3, 'breeder', 'Estancia La Aurora', 'breeder', 'Polo pony breeder', 'Argentina', 0),
       await mk(4, 'bank', 'Banco Pampa Sur', 'bank', 'Partner bank (fictional)', 'Argentina', 0),
       await mk(5, 'admin', 'Polo Coin Treasury', 'admin', 'Issuer & reserve manager', 'Switzerland', 0),
+      // Two open sign-up applications, so the KYC review can be shown right away.
+      await mk(6, 'charlotte', 'Charlotte Hayes', 'patron', 'Team Hollow Creek', 'United States', 100000, 'pending', 120),
+      await mk(7, 'valentina', 'Valentina Arrieta', 'pro', '4-goal professional', 'Argentina', 0, 'pending', 25),
     ],
     sessions: {},
     reserve: 0,
@@ -68,9 +74,14 @@ function decorate(s: State, tx: Tx): Tx {
     from_wallet: f?.wallet ?? null, to_wallet: t?.wallet ?? null };
 }
 
-function publicAccount(a: State['accounts'][number]): Account {
-  const { password: _pw, ...rest } = a;
-  return rest;
+function publicAccount(s: State, a: Stored): Account {
+  const { password: _pw, created_at: _c, kyc_by, ...rest } = a;
+  return { ...rest, kyc_by_name: s.accounts.find((x) => x.id === kyc_by)?.display_name ?? null };
+}
+
+/** Treasury reviews everyone, the partner bank reviews applicants from Argentina. */
+function canReview(r: Stored, a: Stored) {
+  return a.role !== 'bank' && a.role !== 'admin' && (r.role === 'admin' || (r.role === 'bank' && a.country === 'Argentina'));
 }
 
 export function createLocalApi(): Api {
@@ -95,6 +106,12 @@ export function createLocalApi(): Api {
     if (!acc) throw new Error('Session expired – please log in again.');
     return { s, acc };
   }
+  async function authVerified(token: string) {
+    const r = await auth(token);
+    if (r.acc.kyc === 'pending') throw new Error('Your identity check (KYC) is still pending. You can use Polo Coin once it is verified.');
+    if (r.acc.kyc !== 'verified') throw new Error('Your KYC application was rejected. This account cannot use Polo Coin.');
+    return r;
+  }
   function checkAmount(a: number) {
     if (!Number.isFinite(a) || a <= 0) throw new Error('Amount must be greater than zero.');
     if (a > 1_000_000) throw new Error('Demo limit: max. 1,000,000 per transaction.');
@@ -112,7 +129,33 @@ export function createLocalApi(): Api {
       const token = crypto.randomUUID();
       s.sessions[token] = a.id;
       save(s);
-      return { token, account: publicAccount(a) };
+      return { token, account: publicAccount(s, a) };
+    },
+    async register(f) {
+      await delay();
+      const s = await load();
+      const username = f.username.trim().toLowerCase();
+      const name = f.display_name.trim();
+      const country = f.country.trim();
+      const org = f.org.trim() || '—';
+      if (!/^[a-z0-9_]{3,20}$/.test(username)) throw new Error('Username: 3 to 20 characters, only letters, digits and _.');
+      if ((f.password ?? '').length < 6) throw new Error('Password: at least 6 characters.');
+      if (name.length < 2 || name.length > 60) throw new Error('Please enter your full name (max. 60 characters).');
+      if (!['patron', 'pro', 'breeder'].includes(f.role)) throw new Error('Choose patron, professional player or breeder.');
+      if (country.length < 2 || country.length > 40 || org.length > 60) throw new Error('Please enter a country (and an organisation of max. 60 characters).');
+      if (s.accounts.some((a) => a.username === username)) throw new Error('This username is taken. Please choose another one.');
+      if (s.accounts.length >= 200) throw new Error('Demo limit reached. Ask the treasury to reset the demo.');
+      const a: Stored = {
+        id: Math.max(...s.accounts.map((x) => x.id)) + 1, username, display_name: name, role: f.role, org, country,
+        usd: f.role === 'patron' ? 100000 : 0, pc: 0, kyc: 'pending', password: f.password,
+        wallet: '0x' + (await sha256(username + ':' + crypto.randomUUID())).slice(0, 40),
+        created_at: new Date().toISOString(), kyc_by: null, kyc_at: null,
+      };
+      s.accounts.push(a);
+      const token = crypto.randomUUID();
+      s.sessions[token] = a.id;
+      save(s);
+      return { token, account: publicAccount(s, a) };
     },
     async logout(token) {
       const s = await load();
@@ -120,16 +163,17 @@ export function createLocalApi(): Api {
       save(s);
     },
     async me(token) {
-      return publicAccount((await auth(token)).acc);
+      const { s, acc } = await auth(token);
+      return publicAccount(s, acc);
     },
     async directory(token) {
       const { s } = await auth(token);
-      return s.accounts.map(({ id, display_name, role, org, country, wallet }): Party =>
+      return s.accounts.filter((a) => a.kyc === 'verified').map(({ id, display_name, role, org, country, wallet }): Party =>
         ({ id, display_name, role, org, country, wallet }));
     },
     async buy(token, amount) {
       await delay();
-      const { s, acc } = await auth(token);
+      const { s, acc } = await authVerified(token);
       const amt = checkAmount(amount);
       if (acc.usd < amt) throw new Error(`Insufficient USD balance (available: ${acc.usd.toFixed(2)}).`);
       acc.usd = round2(acc.usd - amt);
@@ -141,11 +185,12 @@ export function createLocalApi(): Api {
     },
     async transfer(token, to, amount, memo) {
       await delay();
-      const { s, acc } = await auth(token);
+      const { s, acc } = await authVerified(token);
       const amt = checkAmount(amount);
       if (to === acc.id) throw new Error('You cannot send PC to yourself.');
       const rec = s.accounts.find((a) => a.id === to);
       if (!rec) throw new Error('Recipient not found.');
+      if (rec.kyc !== 'verified') throw new Error('The recipient has not passed KYC yet and cannot receive PC.');
       const fee = round2(amt * FEE_RATE);
       const bankFee = round2(fee * BANK_SHARE);
       if (acc.pc < amt + fee) {
@@ -163,7 +208,7 @@ export function createLocalApi(): Api {
     },
     async redeem(token, amount) {
       await delay();
-      const { s, acc } = await auth(token);
+      const { s, acc } = await authVerified(token);
       const amt = checkAmount(amount);
       if (acc.pc < amt) throw new Error(`Insufficient PC balance (available: ${acc.pc.toFixed(2)}).`);
       const bank = s.accounts.find((a) => a.role === 'bank')!;
@@ -209,6 +254,33 @@ export function createLocalApi(): Api {
       const { acc } = await auth(token);
       if (acc.role !== 'admin') throw new Error('Only the treasury admin can reset the demo.');
       save(await seed());
+    },
+    async kycQueue(token) {
+      const { s, acc } = await auth(token);
+      if (acc.role !== 'admin' && acc.role !== 'bank') throw new Error('Only the treasury and the partner bank review KYC applications.');
+      const when = (a: Stored) => a.kyc_at ?? a.created_at;
+      return s.accounts
+        .filter((a) => canReview(acc, a) && (a.kyc === 'pending' || a.kyc_by !== null))
+        .sort((a, b) => Number(b.kyc === 'pending') - Number(a.kyc === 'pending') || when(b).localeCompare(when(a)))
+        .slice(0, 50)
+        .map((a): Applicant => ({
+          id: a.id, username: a.username, display_name: a.display_name, role: a.role, org: a.org, country: a.country,
+          wallet: a.wallet, kyc: a.kyc, created_at: a.created_at, kyc_at: a.kyc_at ?? null,
+          kyc_by_name: s.accounts.find((x) => x.id === a.kyc_by)?.display_name ?? null,
+        }));
+    },
+    async kycDecide(token, id, approve) {
+      await delay();
+      const { s, acc } = await auth(token);
+      const a = s.accounts.find((x) => x.id === id);
+      if (!a) throw new Error('Applicant not found.');
+      if (!canReview(acc, a)) throw new Error('You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone.');
+      if (a.kyc !== 'pending') throw new Error(`${a.display_name} has already been ${a.kyc}.`);
+      a.kyc = approve ? 'verified' : 'rejected';
+      a.kyc_by = acc.id;
+      a.kyc_at = new Date().toISOString();
+      save(s);
+      return publicAccount(s, a);
     },
   };
 }

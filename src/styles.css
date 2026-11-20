@@ -304,6 +304,47 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
 .payload summary { cursor: pointer; width: fit-content; }
 .payload code { display: block; margin-top: 6px; padding: 8px 10px; background: var(--chalk); border-radius: var(--radius-s); word-break: break-all; color: var(--ink); }
 
+/* ---------- Sign-up and KYC ---------- */
+.signup { display: grid; gap: 18px; margin-top: 24px; }
+.signup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.signup-grid label { display: grid; gap: 4px; font-size: .88rem; color: var(--muted); }
+.signup-grid .span2 { grid-column: 1 / -1; }
+.optional { font-size: .8rem; }
+.small { font-size: .88rem; margin: 0; }
+.signup-cta { border-top: 1px solid var(--line); margin-top: 32px; padding-top: 28px; }
+.signup-cta h2 { font-size: 1.15rem; }
+
+.kyc-badge { display: inline-block; font-size: .74rem; font-weight: 700; border-radius: 4px; padding: 1px 8px; vertical-align: 1px; white-space: nowrap; }
+.kyc-verified { background: #e3f2ea; color: var(--ok); }
+.kyc-pending { background: #f3ead1; color: var(--brass-deep); }
+.kyc-rejected { background: #fbe1df; color: var(--danger); }
+
+.kyc-status { border-left: 5px solid var(--brass); }
+.kyc-status p { color: #33413a; }
+.kyc-status-rejected { border-left-color: var(--danger); }
+.kyc-steps { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 0; }
+.kyc-steps li { display: grid; gap: 1px; padding: 0 0 16px 30px; position: relative; }
+.kyc-steps li::before { content: ''; position: absolute; left: 0; top: 3px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper); box-sizing: border-box; }
+.kyc-steps li:not(:last-child)::after { content: ''; position: absolute; left: 7px; top: 21px; bottom: 1px; width: 2px; background: var(--line); }
+.kyc-steps li.done::before { background: var(--ok); border-color: var(--ok); }
+.kyc-steps li.now::before { border-color: var(--brass); box-shadow: 0 0 0 4px #f3ead1; }
+.kyc-steps span { font-size: .86rem; color: var(--muted); }
+
+.kyc-review { margin-bottom: 20px; }
+.kyc-review .count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 10px; border-radius: 999px; background: var(--brass); color: var(--turf-deep); font-size: .82rem; font-weight: 800; vertical-align: 3px; box-sizing: border-box; }
+.kyc-scope { font-size: .92rem; margin-top: 0; }
+.applicants { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.applicant { display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: var(--radius-m); padding: 10px 14px; }
+.applicant-text { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.applicant-text span { font-size: .9rem; }
+.applicant-text small { color: var(--muted); font-size: .8rem; }
+.applicant-actions { display: flex; gap: 8px; flex: none; }
+.decided { margin-top: 16px; font-size: .9rem; }
+.decided summary { cursor: pointer; color: var(--muted); width: fit-content; }
+.decided ul { list-style: none; padding: 0; margin: 8px 0 0; }
+.decided li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.decided li:last-child { border-bottom: 0; }
+
 /* ---------- Toasts ---------- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 10px; z-index: 50; width: min(420px, calc(100vw - 32px)); }
 .toast { position: relative; background: var(--ink); color: var(--chalk); border-radius: 12px; padding: 14px 40px 14px 16px; border-left: 5px solid var(--celeste); animation: pop .25s ease-out; }
@@ -338,6 +379,10 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
   .block:not(:last-child)::before { left: 25px; }
   .topnav { gap: 6px 14px; font-size: .9rem; }
   .topbar { align-items: flex-start; }
+  .signup-grid { grid-template-columns: 1fr; }
+  .applicant { flex-wrap: wrap; }
+  .applicant-actions { width: 100%; }
+  .applicant-actions .btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition: none !important; }

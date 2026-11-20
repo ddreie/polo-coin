@@ -41,7 +41,7 @@ export default function Login({ onLogin, current }: { onLogin: (t: string, a: Ac
       <DemoBanner />
       <header className="topbar wrap">
         <Logo />
-        <nav className="topnav"><a href="#/explorer">Ledger</a></nav>
+        <nav className="topnav"><a href="#/explorer">Ledger</a><a href="#/register">Open an account</a></nav>
       </header>
       <main className="login wrap">
         <div className="login-intro">
@@ -79,6 +79,12 @@ export default function Login({ onLogin, current }: { onLogin: (t: string, a: Ac
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
         </form>
+
+        <div className="signup-cta">
+          <h2>New to Polo Coin?</h2>
+          <p className="muted">Open your own account. It goes through an identity check (KYC) by the treasury before you can pay.</p>
+          <a className="btn btn-ghost" href="#/register">Open an account</a>
+        </div>
       </main>
     </div>
   );

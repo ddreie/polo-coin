@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Account, Api, Party, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Party, Stats, Tx } from './types';
 
 /** Calls the api_* Postgres functions defined in supabase/setup.sql. */
 export function createSupabaseApi(url: string, key: string): Api {
@@ -14,6 +14,10 @@ export function createSupabaseApi(url: string, key: string): Api {
   return {
     mode: 'supabase',
     login: (u, p) => rpc('api_login', { p_username: u, p_password: p }),
+    register: (f) => rpc('api_register', {
+      p_username: f.username, p_password: f.password, p_display_name: f.display_name,
+      p_role: f.role, p_org: f.org, p_country: f.country,
+    }),
     logout: (t) => rpc('api_logout', { p_token: t }),
     me: (t) => rpc<Account>('api_me', { p_token: t }).then(num),
     directory: (t) => rpc<Party[]>('api_directory', { p_token: t }),
@@ -26,6 +30,8 @@ export function createSupabaseApi(url: string, key: string): Api {
     explorer: (limit = 25) => rpc<Tx[]>('api_explorer', { p_limit: limit }).then((r) => r.map(num)),
     stats: () => rpc<Stats>('api_stats').then(num),
     reset: (t) => rpc('api_reset', { p_token: t }),
+    kycQueue: (t) => rpc<Applicant[]>('api_kyc_queue', { p_token: t }),
+    kycDecide: (t, id, ok) => rpc<Account>('api_kyc_decide', { p_token: t, p_account: id, p_approve: ok }).then(num),
   };
 }
 

@@ -39,7 +39,7 @@ function Patron({ account, txs }: Props) {
         ['Fees paid', `PC ${money(fees)}`],
         ['Saved vs. bank wire', `USD ${money0(Math.max(0, saved))}`, `Assumes a ${(SWIFT.feeMid * 100).toFixed(1)} % wire cost, the midpoint of 2–5 %`],
       ]} />
-      {sent.length === 0 && <p className="hint">Buy some PC, then pay Facundo Ríos his tournament fee.</p>}
+      {sent.length === 0 && account.kyc === 'verified' && <p className="hint">Buy some PC, then pay Facundo Ríos his tournament fee.</p>}
     </section>
   );
 }
@@ -57,7 +57,7 @@ function Receiver({ account, txs }: Props) {
         ['Cashed out in USD', `USD ${money0(out)}`],
         ['Wire days avoided', got.length ? `${got.length * SWIFT.daysLow}–${got.length * SWIFT.daysHigh}` : '0', 'Compared with receiving each payment by bank wire'],
       ]} />
-      {got.length === 0 && <p className="hint">No payments yet. Log in as the patron and send one.</p>}
+      {got.length === 0 && account.kyc === 'verified' && <p className="hint">No payments yet. Log in as the patron and send one.</p>}
     </section>
   );
 }
