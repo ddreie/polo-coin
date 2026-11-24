@@ -23,7 +23,7 @@ export interface TourStep {
 /** The guided demo: the whole business case in seven steps, switching roles with one click. */
 export const TOUR: TourStep[] = [
   { as: 'patron', path: '/app/pay?tab=buy', title: 'Buy Polo Coin',
-    text: 'James buys PC with US dollars from his bank account. He pays a single 1 % fee on top; the dollars go into the reserve.' },
+    text: 'James buys PC with US dollars from his bank account. He pays a single 1% fee on top, and the dollars go into the reserve.' },
   { as: 'patron', path: '/app', title: 'Pay the player’s request',
     text: 'Facundo has asked for his Gstaad tournament fee. James pays it with one click. Transfers are free.' },
   { as: 'pro', path: '/app', title: 'Paid in seconds',

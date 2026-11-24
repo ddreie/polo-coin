@@ -25,7 +25,7 @@ export default function Transparency() {
             <div className="por-row"><span>Polo Coin in circulation</span><strong>{s ? money0(s.supply_pc) : '…'}</strong></div>
             <div className="por-bar"><span className="por-fill por-fill-pc" style={{ width: `${Math.min(100, 100 / Math.max(backing, 0.0001))}%` }} /></div>
             <p className={`por-verdict${s && !s.chain_valid ? ' bad' : ''}`}>
-              {s ? <>Backing <strong>{Math.round(backing * 100)} %</strong> · ledger {s.chain_valid ? 'intact' : 'broken'} · {s.tx_count} transactions</> : 'Loading live figures…'}
+              {s ? <>Backing <strong>{Math.round(backing * 100)}%</strong> · ledger {s.chain_valid ? 'intact' : 'broken'} · {s.tx_count} transactions</> : 'Loading live figures…'}
             </p>
           </div>
           <div className="grid-2 por-stats">
@@ -40,12 +40,12 @@ export default function Transparency() {
       <Section tone="cream" title="How the reserve is held" intro="Safety first: only cash and the shortest US government debt.">
         <div className="reserve-mix">
           <div className="mix-bar" aria-hidden="true">
-            <span className="mix-cash" style={{ width: `${(s?.cash_share ?? 0.3) * 100}%` }}>{Math.round((s?.cash_share ?? 0.3) * 100)} %</span>
-            <span className="mix-bills">{Math.round((1 - (s?.cash_share ?? 0.3)) * 100)} %</span>
+            <span className="mix-cash" style={{ width: `${(s?.cash_share ?? 0.3) * 100}%` }}>{Math.round((s?.cash_share ?? 0.3) * 100)}%</span>
+            <span className="mix-bills">{Math.round((1 - (s?.cash_share ?? 0.3)) * 100)}%</span>
           </div>
           <div className="grid-2">
             <Card title={`US dollar deposits · USD ${money0(cash)}`}>
-              <p>At least 30&nbsp;% of the reserve is held as bank deposits, the legal minimum for e-money tokens under MiCA (Art. 54). It covers redemptions immediately.</p>
+              <p>At least 30% of the reserve is held as bank deposits, the legal minimum for e-money tokens under MiCA (Art. 54). It covers redemptions immediately.</p>
             </Card>
             <Card title={`US Treasury bills · USD ${money0(bills)}`}>
               <p>The rest is invested in T-bills with at most 93 days to maturity, the limit of the US GENIUS Act. Their value barely moves with interest rates, so they can be sold within a day without loss.</p>
@@ -61,7 +61,7 @@ export default function Transparency() {
           <li>The reserve is kept in segregated accounts, apart from Polo Coin’s own funds, so holders are protected if the issuer fails.</li>
           <li>Interest on the reserve is not paid to holders, in line with MiCA (Art. 50).</li>
           <li>Every transaction is public as a hash-chained block, with wallets shown as addresses, not names.</li>
-          <li>The reserve is audited regularly (in production; simulated in this prototype).</li>
+          <li>The reserve is audited regularly in production. This prototype simulates the audit.</li>
         </ul>
         <p><Link to="/security">Security and regulation →</Link></p>
       </Section>

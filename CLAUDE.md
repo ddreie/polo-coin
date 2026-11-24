@@ -16,7 +16,7 @@ unless they write in another language; the website itself is in English.
 | Keep-alive | `.github/workflows/keepalive.yml` | Pings `api_ping` every 3 days so the free Supabase project never pauses. |
 | Offline mode | `src/api/localApi.ts` | `npm run dev:demo` runs the same rules in the browser without Supabase. Keep it in sync with the SQL rules. |
 
-Business rules (as in the paper): 1 PC = 1 USD; buying (mint) costs a 1 % fee on top, paid in USD and split 50/50
+Business rules (as in the paper): 1 PC = 1 USD; buying (mint) costs a 1% fee on top, paid in USD and split 50/50
 between treasury (`admin`) and partner bank (`bank`); transfers, payment requests and cash-out (burn) are free.
 Escrow: buyer locks PC in the contract wallet (role `contract`); the named vet (role `vet`) reports the examination
 and the contract pays the seller or refunds the buyer. Invariant: USD reserve = PC in circulation (incl. escrow).
@@ -43,11 +43,13 @@ Demo accounts: `patron`, `pro`, `breeder`, `vet`, `bank`, `admin`, password `pol
   `service_role` key must never appear anywhere.
 - All people, banks and organisations in the demo are fictional; keep it that way.
 - Keep the corporate identity (decided 24.11.2026): tokens at the top of `src/styles.css` – Forest Green `#0F4027`
-  (base, ~60 %), Old Cream `#EBCFAD` (secondary, ~30 %), Burnt Orange `#F26A1E` (accent, ≤10 %, never as text on
+  (base, ~60%), Old Cream `#EBCFAD` (secondary, ~30%), Burnt Orange `#F26A1E` (accent, ≤10%, never as text on
   cream); Helvetica family with Arial fallback. Use the logo files in `public/brand/` (logo 1A: coin ring, crossed
   mallets, orange ball; simplified `icon-*` version at 32 px and below). Regenerate them with
   `python3 scripts/brand/generate.py`, never hand-edit the SVGs. The old token names (`--turf`, `--brass`,
   `--celeste`, …) are aliases for the redesign transition; new code uses `--forest`, `--cream`, `--orange`.
 - The redesign (multi-page site, new features) happens on the branch `redesign`; plan: "Polo Coin – Plan zum finalen
   Prototyp" (Claude doc of the team).
+- Writing style for all website and app text: no semicolons between clauses (write two sentences or use a comma),
+  and no space before the percent sign (`30%`, not `30 %`).
 - The README (German) explains the project for the team; update it when the setup changes.

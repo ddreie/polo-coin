@@ -1,9 +1,9 @@
 import { PageHero, Section } from '../../ui';
 
 const COLOURS = [
-  { name: 'Forest Green', hex: '#0F4027', role: 'Base, about 60 %', use: 'Hero areas, navigation, text on light backgrounds', ink: '#EBCFAD' },
-  { name: 'Old Cream', hex: '#EBCFAD', role: 'Secondary, about 30 %', use: 'Sections, cards, text on green', ink: '#0F4027' },
-  { name: 'Burnt Orange', hex: '#F26A1E', role: 'Accent, at most 10 %', use: 'One main button per view, highlights, the ball in the logo', ink: '#0A2E1C' },
+  { name: 'Forest Green', hex: '#0F4027', role: 'Base, about 60%', use: 'Hero areas, navigation, text on light backgrounds', ink: '#EBCFAD' },
+  { name: 'Old Cream', hex: '#EBCFAD', role: 'Secondary, about 30%', use: 'Sections, cards, text on green', ink: '#0F4027' },
+  { name: 'Burnt Orange', hex: '#F26A1E', role: 'Accent, at most 10%', use: 'One main button per view, highlights, the ball in the logo', ink: '#0A2E1C' },
 ];
 
 const LOGOS = [
@@ -58,7 +58,7 @@ export default function Brand() {
 
       <Section tone="cream" title="Do and don’t">
         <div className="grid-2">
-          <ul className="checklist"><li>Give the logo room: at least the ball’s diameter on every side</li><li>Use one orange element per view</li><li>Write numbers, not adjectives: “1 %”, “in seconds”</li></ul>
+          <ul className="checklist"><li>Give the logo room: at least the ball’s diameter on every side</li><li>Use one orange element per view</li><li>Write numbers, not adjectives: “1%”, “in seconds”</li></ul>
           <ul className="crosslist"><li>Recolour, stretch or add effects to the logo</li><li>Set text in orange on cream</li><li>Use the full logo below 32 px</li></ul>
         </div>
       </Section>

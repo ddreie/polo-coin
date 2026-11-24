@@ -118,7 +118,7 @@ function Buy() {
     <form className="action" onSubmit={submit}>
       <p className="action-help">
         Move US dollars from your bank account into the Polo Coin reserve and receive the same amount in PC.
-        You pay one fee of {rate * 100} % now; sending and cashing out later are free.
+        You pay one fee of {rate * 100}% now. Sending and cashing out later are free.
       </p>
       <AmountInput value={v} onChange={setV} cur="PC" max={maxBuy} />
       <div className="presets">
@@ -126,7 +126,7 @@ function Buy() {
       </div>
       <dl className="summary">
         <div><dt>{t('You receive')}</dt><dd>PC {money(amt)}</dd></div>
-        <div><dt>{t('Fee (1 %)')}</dt><dd>USD {money(fee)}</dd></div>
+        <div><dt>{t('Fee (1%)')}</dt><dd>USD {money(fee)}</dd></div>
         <div className="total"><dt>{t('You pay')}</dt><dd>USD {money(amt + fee)}</dd></div>
         {amt > 0 && <div className="compare"><dt>{t('Same payment by bank wire')}</dt><dd>USD {money0(amt * SWIFT.feeLow)}–{money0(amt * SWIFT.feeHigh)}, {SWIFT.daysLow}–{SWIFT.daysHigh} days</dd></div>}
       </dl>

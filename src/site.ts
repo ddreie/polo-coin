@@ -16,7 +16,7 @@ export const SITE_PAGES: SitePage[] = [
     title: 'Built for everyone who keeps polo running',
     lede: 'Patrons pay, professionals, breeders and grooms receive. Each side gets what it needs from the same coin.' },
   { path: '/pricing', label: 'Pricing', inNav: true, group: 'Product',
-    title: 'One fee. 1 %. Nothing hidden.',
+    title: 'One fee. 1%. Nothing hidden.',
     lede: 'Compare what a payment to Argentina costs with your bank and with Polo Coin.' },
   { path: '/escrow', label: 'Escrow', inNav: true, group: 'Product',
     title: 'Buy the horse, not the risk',

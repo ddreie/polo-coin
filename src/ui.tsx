@@ -63,7 +63,7 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
 
-/** A key figure with label, e.g. "1 %" / "fee per payment". */
+/** A key figure with label, e.g. "1%" / "fee per payment". */
 export function Stat({ value, label }: { value: ReactNode; label: ReactNode }) {
   return (
     <div className="stat">

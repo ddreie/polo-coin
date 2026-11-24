@@ -42,8 +42,8 @@ function Patron() {
       <Figures items={[
         ['Payments sent', String(sent.length)],
         ['Volume paid', `PC ${money0(vol)}`],
-        ['Fees paid (1 % on purchases)', `USD ${money(fees)}`],
-        ['Saved vs. bank wire', `USD ${money0(Math.max(0, saved))}`, `Assumes a ${(SWIFT.feeMid * 100).toFixed(1)} % wire cost, the midpoint of 2–5 %`],
+        ['Fees paid (1% on purchases)', `USD ${money(fees)}`],
+        ['Saved vs. bank wire', `USD ${money0(Math.max(0, saved))}`, `Assumes a ${(SWIFT.feeMid * 100).toFixed(1)}% wire cost, the midpoint of 2–5%`],
       ]} />
     </section>
   );
@@ -94,7 +94,7 @@ function Bank() {
       <Figures items={[
         ['Cash-outs processed', String(red.length)],
         ['USD paid out', `USD ${money0(vol)}`],
-        ['Fee income', `USD ${money(account.usd)}`, `${share * 100} % of the 1 % purchase fee, for currency conversion`],
+        ['Fee income', `USD ${money(account.usd)}`, `${share * 100}% of the 1% purchase fee, for currency conversion`],
         ['Transactions on the network', String(txs.length)],
       ]} />
       <p className="hint">As a partner bank you see every transaction for AML monitoring and review KYC applications from Argentina.</p>
@@ -127,9 +127,9 @@ function Treasury() {
     <section className="panel role">
       <h2>Reserve and revenue</h2>
       <Figures items={[
-        ['Backing', `${Math.round(backing * 100)} %`, `USD ${money0(stats.reserve_usd)} reserve for PC ${money0(stats.supply_pc)}`],
+        ['Backing', `${Math.round(backing * 100)}%`, `USD ${money0(stats.reserve_usd)} reserve for PC ${money0(stats.supply_pc)}`],
         ['Fee revenue (treasury share)', `USD ${money(account.usd)}`],
-        ['Interest on reserve', `USD ${money0(interest)} p.a.`, `${Math.round((1 - stats.cash_share) * 100)} % in T-bills at ${(stats.reserve_yield * 100).toFixed(1)} %`],
+        ['Interest on reserve', `USD ${money0(interest)} p.a.`, `${Math.round((1 - stats.cash_share) * 100)}% in T-bills at ${(stats.reserve_yield * 100).toFixed(1)}%`],
         ['Ledger integrity', stats.chain_valid ? 'Hash chain intact' : 'Chain broken'],
       ]} />
       <p className="hint"><Link to="/transparency">Public proof of reserves</Link></p>

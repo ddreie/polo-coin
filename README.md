@@ -23,19 +23,19 @@ In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) um
 
 | Vorgang | Wirkung | Gebühr |
 |---|---|---|
-| Kauf (Mint) | USD vom Bankkonto in die Reserve, gleich viel PC wird ausgegeben | 1 % zusätzlich in USD, 50 % an Treasury, 50 % an Partnerbank |
+| Kauf (Mint) | USD vom Bankkonto in die Reserve, gleich viel PC wird ausgegeben | 1% zusätzlich in USD, 50% an Treasury, 50% an Partnerbank |
 | Transfer | PC von Wallet zu Wallet, sofort | keine |
 | Zahlungsanforderung | Spieler/Breeder/Tierärztin fordert Betrag an, Zahler bezahlt per Klick (normaler Transfer) | keine |
 | Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Käufer kann vorher abbrechen | keine |
 | Auszahlung (Burn) | PC wird vernichtet, USD aus der Reserve aufs Bankkonto | keine |
 
-Reserve: 30 % als USD-Einlagen (MiCA Art. 54), 70 % in T-Bills (≤ 93 Tage, GENIUS Act), angenommene Rendite 4.2 %. Gesperrte PC im Escrow zählen zum Umlauf.
+Reserve: 30% als USD-Einlagen (MiCA Art. 54), 70% in T-Bills (≤ 93 Tage, GENIUS Act), angenommene Rendite 4.2%. Gesperrte PC im Escrow zählen zum Umlauf.
 
 ## Registrierung und KYC
 
 Neue Nutzer können sich über „Open an account“ selbst registrieren (Patron, Spieler oder Breeder). Das Konto ist danach „pending“: Man kann sich einloggen, aber weder kaufen, senden, empfangen noch auszahlen. Die Treasury (`admin`) prüft alle Anmeldungen, die Partnerbank (`bank`) die Anmeldungen aus Argentinien. Beide sehen dazu in der Wallet unter „Review“ die Liste „Identity checks (KYC)“ mit „Verify“ und „Reject“. Damit zeigt der Prototyp, dass es keine anonymen Wallets gibt (FINMA-Aufsichtsmitteilung 06/2024: der Emittent muss alle Halter identifizieren). Neue Patrons starten mit einem simulierten Bankkonto von USD 100'000. Ein Reset der Demo löscht alle selbst registrierten Konten.
 
-Invariante: USD-Reserve = PC im Umlauf (100 % Deckung). Jede Transaktion ist ein Block mit SHA-256-Hash, der den Hash des vorherigen Blocks enthält (Hash-Kette wie bei einer Blockchain).
+Invariante: USD-Reserve = PC im Umlauf (100% Deckung). Jede Transaktion ist ein Block mit SHA-256-Hash, der den Hash des vorherigen Blocks enthält (Hash-Kette wie bei einer Blockchain).
 
 ## Architektur
 
@@ -74,9 +74,9 @@ scripts/brand/          Generator für die Logo-Dateien
 
 | Rolle | Farbe | Hex | Einsatz |
 |---|---|---|---|
-| Basis (ca. 60 %) | Forest Green | `#0F4027` | Hero, Navigation, Text auf hellem Grund |
-| Sekundär (ca. 30 %) | Old Cream | `#EBCFAD` | Sektionen, Karten, Text auf Grün |
-| Akzent (max. 10 %) | Burnt Orange | `#F26A1E` | Buttons, Highlights, Ball im Logo – nie als Text auf Creme |
+| Basis (ca. 60%) | Forest Green | `#0F4027` | Hero, Navigation, Text auf hellem Grund |
+| Sekundär (ca. 30%) | Old Cream | `#EBCFAD` | Sektionen, Karten, Text auf Grün |
+| Akzent (max. 10%) | Burnt Orange | `#F26A1E` | Buttons, Highlights, Ball im Logo – nie als Text auf Creme |
 
 Schrift: Helvetica-Familie, auf Windows Arial als Fallback. Die Tokens stehen oben in `src/styles.css`.
 

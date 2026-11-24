@@ -11,7 +11,7 @@ const MARKUP: Record<Cur, { low: number; high: number; note: string }> = {
   USD: { low: 0, high: 0, note: 'No conversion from a US dollar account' },
   CHF: { low: 0.031, high: 0.031, note: 'Measured mark-up CHF → USD (Du et al., 2026)' },
   EUR: { low: 0.037, high: 0.047, note: 'Measured mark-up EUR → USD (Du et al., 2026)' },
-  GBP: { low: 0.0355, high: 0.037, note: 'Lloyds Bank 3.55 %, HSBC 3.7 %' },
+  GBP: { low: 0.0355, high: 0.037, note: 'Lloyds Bank 3.55%, HSBC 3.7%' },
 };
 type Cur = 'USD' | 'CHF' | 'EUR' | 'GBP';
 const PC_FEE = 0.01;
@@ -22,13 +22,13 @@ function ourFee(amount: number, edge: 'low' | 'high') {
   const w = Math.min(1, Math.max(0, Math.log(amount / 2000) / Math.log(5)));
   return OUR.at2k[edge] + (OUR.at10k[edge] - OUR.at2k[edge]) * w;
 }
-const pct = (x: number) => `${(x * 100).toFixed(1)} %`;
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 export default function Pricing() {
   return (
     <>
-      <PageHero eyebrow="Pricing" title="One fee. 1 %. Nothing hidden."
-        lede="You pay 1 % when you buy Polo Coin. Currency conversion, every payment and the cash-out in Argentina are included.">
+      <PageHero eyebrow="Pricing" title="One fee. 1%. Nothing hidden."
+        lede="You pay 1% when you buy Polo Coin. Currency conversion, every payment and the cash-out in Argentina are included.">
         <ButtonLink to="/login" variant="accent">Try it in the demo</ButtonLink>
       </PageHero>
 
@@ -38,7 +38,7 @@ export default function Pricing() {
 
       <Section tone="cream" title="What is included">
         <div className="grid-3">
-          <Card title="Buying PC: 1 %">
+          <Card title="Buying PC: 1%">
             <p>Paid once, in your own currency. Covers the conversion into US dollars at near-wholesale rates and the later cash-out. Shared with our partner banks.</p>
           </Card>
           <Card title="Payments: free">
@@ -53,9 +53,9 @@ export default function Pricing() {
       <Section title="How Polo Coin earns money">
         <div className="split">
           <p>
-            Two revenue streams. First, the 1&nbsp;% purchase fee, part of which goes to the partner banks for conversion
-            and payout. Second, interest on the reserve: 70&nbsp;% of it is invested in US Treasury bills with up to 93
-            days to maturity. At a yield of about 4.2&nbsp;%, every dollar in the reserve earns roughly 2.9&nbsp;% a year.
+            Two revenue streams. First, the 1% purchase fee, part of which goes to the partner banks for conversion
+            and payout. Second, interest on the reserve: 70% of it is invested in US Treasury bills with up to 93
+            days to maturity. At a yield of about 4.2%, every dollar in the reserve earns roughly 2.9% a year.
             As required by MiCA, this interest is not passed on to coin holders.
           </p>
           <p className="muted">
@@ -117,11 +117,11 @@ function Calculator() {
       <p className="calc-result">
         {saveHigh > 0
           ? <>On this payment you save <strong>USD {money0(a * saveLow)}–{money0(a * saveHigh)}</strong> ({pct(saveLow)}–{pct(saveHigh)} points) compared with a bank wire.</>
-          : <>From a US dollar account, large payments by bank wire can be cheaper than 1&nbsp;%. Polo Coin still arrives in seconds and offers escrow.</>}
+          : <>From a US dollar account, large payments by bank wire can be cheaper than 1%. Polo Coin still arrives in seconds and offers escrow.</>}
       </p>
       <p className="muted small">
         Bank cost = OUR fee (all charges paid by the sender) + exchange-rate mark-up. {m.note}. Mark-ups exclude wire fees, so real
-        bank costs are likely higher. Converting received dollars into pesos adds about 1.7&nbsp;% with any option. Source: our
+        bank costs are likely higher. Converting received dollars into pesos adds about 1.7% with any option. Source: our
         seminar paper, Table 1 (fee schedules of Bank of America, Barclays, BBVA, Chase, Deutsche Bank, ING, Lloyds, UBS, UniCredit, 2026).
       </p>
     </div>

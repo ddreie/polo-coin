@@ -55,7 +55,7 @@ const ES: Record<string, string> = {
   'Amount': 'Monto',
   'You pay': 'Pagas',
   'You receive': 'Recibes',
-  'Fee (1 %)': 'Comisión (1 %)',
+  'Fee (1%)': 'Comisión (1%)',
   '{name} receives': '{name} recibe',
   'Free': 'Gratis',
   'Same payment by bank wire': 'El mismo pago por transferencia bancaria',

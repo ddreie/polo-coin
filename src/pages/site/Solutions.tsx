@@ -3,8 +3,8 @@ import { ButtonLink, PageHero, Section, Stat } from '../../ui';
 const GROUPS = [
   {
     id: 'patrons', title: 'Patrons', role: 'They pay',
-    pain: 'A patron finances a team: player fees, horses, grooms, transport. Paying Argentina from a franc, euro or pound account costs the wire fee plus a hidden exchange-rate mark-up of 3–5 %.',
-    gain: ['1 % once, conversion included, known before you pay', 'No US dollar account needed', 'Pay any player in seconds, also on match day', 'Escrow protects horse purchases'],
+    pain: 'A patron finances a team: player fees, horses, grooms, transport. Paying Argentina from a franc, euro or pound account costs the wire fee plus a hidden exchange-rate mark-up of 3–5%.',
+    gain: ['1% once, conversion included, known before you pay', 'No US dollar account needed', 'Pay any player in seconds, also on match day', 'Escrow protects horse purchases'],
     figure: ['1,100–6,750', 'patrons worldwide pay abroad'],
   },
   {
@@ -53,7 +53,7 @@ export default function Solutions() {
 
       <Section tone="dark" title="And the institutions behind them">
         <div className="grid-3">
-          <div><h3>Partner banks</h3><p>Convert currencies, hold the reserve and pay out dollars in Argentina, for a share of the 1&nbsp;% fee.</p></div>
+          <div><h3>Partner banks</h3><p>Convert currencies, hold the reserve and pay out dollars in Argentina, for a share of the 1% fee.</p></div>
           <div><h3>Clubs and associations</h3><p>Give access to the community and lend their trust. Their members get cheaper, faster payments.</p></div>
           <div><h3>Tournament organisers</h3><p>Bring all groups together for weeks. The ideal place for a pilot, and later for entry fees and prize money.</p></div>
         </div>

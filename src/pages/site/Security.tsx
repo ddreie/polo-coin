@@ -3,8 +3,8 @@ import { Card, PageHero, Section } from '../../ui';
 
 const REGULATORS = [
   ['Switzerland', 'FINMA', 'Supervises stablecoin issuers. Guidance 06/2024: the issuer must identify every holder.'],
-  ['European Union', 'National authorities under MiCA', 'Licence for e-money tokens in one member state, valid across the EU; reserve and redemption rules.'],
-  ['Argentina', 'BCRA and CNV', 'The central bank regulates the foreign exchange market; the securities regulator registers crypto service providers.'],
+  ['European Union', 'National authorities under MiCA', 'Licence for e-money tokens in one member state, valid across the EU, with rules on reserve and redemption.'],
+  ['Argentina', 'BCRA and CNV', 'The central bank regulates the foreign exchange market. The securities regulator registers crypto service providers.'],
   ['United States', 'GENIUS Act (2025)', 'Full 1:1 backing, short-term reserve assets, no interest paid to holders.'],
 ];
 
@@ -25,7 +25,7 @@ export default function Security() {
         <div className="grid-3">
           <Card title="Verified before the first payment"><p>A new account can log in but cannot buy, send or receive until the treasury, or the partner bank for applicants from Argentina, has verified the identity. <Link to="/register">Try the sign-up</Link>.</p></Card>
           <Card title="Monitored like a bank"><p>The partner bank sees every transaction for anti-money-laundering checks. Public stablecoins are criticised for exactly this gap; Polo Coin closes it.</p></Card>
-          <Card title="Public, but pseudonymous"><p>The ledger shows amounts and wallet addresses. Names and payment references stay private; references are stored only as hashes.</p></Card>
+          <Card title="Public, but pseudonymous"><p>The ledger shows amounts and wallet addresses. Names and payment references stay private. References are stored only as hashes.</p></Card>
         </div>
       </Section>
 
