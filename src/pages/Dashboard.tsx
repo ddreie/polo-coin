@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Account, type Party, type Stats, type Tx } from '../api';
-import { Avatar, DemoBanner, Logo } from '../components/Brand';
+import { Link } from 'react-router-dom';
+import { Avatar, Logo } from '../components/Brand';
 import ActionPanel from '../components/ActionPanel';
 import Activity from '../components/Activity';
 import RolePanel from '../components/RolePanel';
@@ -12,7 +13,7 @@ interface Props {
   token: string;
   account: Account;
   setAccount: (a: Account) => void;
-  onLogout: (next?: 'login' | 'home') => void;
+  onLogout: (next?: string) => void;
 }
 
 export default function Dashboard({ token, account, setAccount, onLogout }: Props) {
@@ -57,14 +58,14 @@ export default function Dashboard({ token, account, setAccount, onLogout }: Prop
   }, [refresh]);
 
   return (
-    <div className="page app">
-      <DemoBanner />
+    <>
       <header className="topbar wrap">
         <Logo />
         <nav className="topnav">
-          <a href="#/explorer">Ledger</a>
-          <a href="#/login">Switch account</a>
-          <button className="linklike" onClick={() => onLogout('login')}>Log out</button>
+          <Link to="/">Website</Link>
+          <Link to="/explorer">Ledger</Link>
+          <Link to="/login">Switch account</Link>
+          <button className="linklike" onClick={() => onLogout('/login')}>Log out</button>
         </nav>
       </header>
 
@@ -105,6 +106,6 @@ export default function Dashboard({ token, account, setAccount, onLogout }: Prop
 
         <Activity account={account} txs={txs} />
       </main>
-    </div>
+    </>
   );
 }

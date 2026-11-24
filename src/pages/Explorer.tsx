@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type Stats, type Tx } from '../api';
-import { DemoBanner, Logo } from '../components/Brand';
+import { useSearchParams } from 'react-router-dom';
 import { money, shortHash, timeAgo } from '../format';
 import { blockPayload, verifyChain, type BlockCheck } from '../verify';
 
@@ -8,14 +8,15 @@ const kindLabel: Record<Tx['kind'], string> = { genesis: 'Genesis', mint: 'Mint'
 
 interface Result { checks: Map<number, BlockCheck>; ok: boolean; ms: number; count: number; tampered: number | null }
 
-export default function Explorer({ signedIn }: { signedIn: boolean }) {
+export default function Explorer() {
   const [blocks, setBlocks] = useState<Tx[] | null>(null);   // newest first, as served
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [tamper, setTamper] = useState<number | null>(null); // block whose amount we altered locally
-  const focus = Number(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('b')) || null;
+  const [params] = useSearchParams();
+  const focus = Number(params.get('b')) || null;
 
   useEffect(() => {
     const load = () => Promise.all([api.explorer(2000), api.stats()])
@@ -72,15 +73,7 @@ export default function Explorer({ signedIn }: { signedIn: boolean }) {
   const canTamper = (blocks?.filter((b) => b.kind !== 'genesis').length ?? 0) >= 1;
 
   return (
-    <div className="page">
-      <DemoBanner />
-      <header className="topbar wrap">
-        <Logo />
-        <nav className="topnav">
-          <a className="btn btn-small" href={signedIn ? '#/app' : '#/login'}>{signedIn ? 'Back to wallet' : 'Log in'}</a>
-        </nav>
-      </header>
-      <main className="wrap explorer">
+    <div className="wrap explorer">
         <div className="explorer-head">
           <div>
             <h1>Public ledger</h1>
@@ -189,7 +182,6 @@ export default function Explorer({ signedIn }: { signedIn: boolean }) {
             );
           })}
         </ol>
-      </main>
     </div>
   );
 }

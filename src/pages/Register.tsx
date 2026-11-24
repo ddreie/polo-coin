@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { api, type Account, type SignUp } from '../api';
-import { Avatar, DemoBanner, Logo } from '../components/Brand';
+import { Link } from 'react-router-dom';
+import { api, type SignUp } from '../api';
+import { Avatar } from '../components/Brand';
+import { useSession } from '../session';
 import { roleLabel } from '../format';
 
 const ROLES: { id: SignUp['role']; what: string }[] = [
@@ -11,7 +13,8 @@ const ROLES: { id: SignUp['role']; what: string }[] = [
 
 const COUNTRIES = ['Argentina', 'United Kingdom', 'United States', 'Switzerland', 'Germany', 'France', 'Spain', 'Uruguay'];
 
-export default function Register({ onLogin }: { onLogin: (t: string, a: Account) => void }) {
+export default function Register() {
+  const onLogin = useSession().login;
   const [f, setF] = useState<SignUp>({ username: '', password: '', display_name: '', role: 'patron', org: '', country: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +34,7 @@ export default function Register({ onLogin }: { onLogin: (t: string, a: Account)
   }
 
   return (
-    <div className="page">
-      <DemoBanner />
-      <header className="topbar wrap">
-        <Logo />
-        <nav className="topnav"><a href="#/explorer">Ledger</a><a href="#/login">Log in</a></nav>
-      </header>
-      <main className="login wrap">
+    <div className="login wrap">
         <div className="login-intro">
           <h1>Open a Polo Coin account</h1>
           <p>
@@ -76,9 +73,8 @@ export default function Register({ onLogin }: { onLogin: (t: string, a: Account)
 
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="btn btn-wide" disabled={busy}>{busy ? 'Submitting…' : 'Sign up and submit for KYC'}</button>
-          <p className="muted small">Already have an account? <a href="#/login">Log in</a></p>
+          <p className="muted small">Already have an account? <Link to="/login">Log in</Link></p>
         </form>
-      </main>
     </div>
   );
 }

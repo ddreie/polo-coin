@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { api, type Account, type Role } from '../api';
-import { Avatar, DemoBanner, Logo } from '../components/Brand';
+import { Link } from 'react-router-dom';
+import { api, type Role } from '../api';
+import { Avatar } from '../components/Brand';
+import { useSession } from '../session';
 import { roleLabel } from '../format';
 
 const DEMO: { username: string; name: string; role: Role; what: string }[] = [
@@ -12,7 +14,8 @@ const DEMO: { username: string; name: string; role: Role; what: string }[] = [
 ];
 const PASSWORD = 'polo2026';
 
-export default function Login({ onLogin, current }: { onLogin: (t: string, a: Account) => void; current: Account | null }) {
+export default function Login() {
+  const { login: onLogin, account: current } = useSession();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -37,13 +40,7 @@ export default function Login({ onLogin, current }: { onLogin: (t: string, a: Ac
   }
 
   return (
-    <div className="page">
-      <DemoBanner />
-      <header className="topbar wrap">
-        <Logo />
-        <nav className="topnav"><a href="#/explorer">Ledger</a><a href="#/register">Open an account</a></nav>
-      </header>
-      <main className="login wrap">
+    <div className="login wrap">
         <div className="login-intro">
           <h1>Log in to a demo wallet</h1>
           <p>
@@ -83,9 +80,8 @@ export default function Login({ onLogin, current }: { onLogin: (t: string, a: Ac
         <div className="signup-cta">
           <h2>New to Polo Coin?</h2>
           <p className="muted">Open your own account. It goes through an identity check (KYC) by the treasury before you can pay.</p>
-          <a className="btn btn-ghost" href="#/register">Open an account</a>
+          <Link className="btn btn-ghost" to="/register">Open an account</Link>
         </div>
-      </main>
     </div>
   );
 }

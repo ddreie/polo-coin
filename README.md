@@ -49,7 +49,12 @@ Die Blockchain wird simuliert (zentrale Datenbank mit Hash-Kette). In einer echt
 ```
 supabase/setup.sql      Datenbank: Tabellen, Regeln, API-Funktionen, Demo-Daten
 src/api/                Zugriff auf die API (Supabase) und lokaler Demo-Modus
-src/pages/              Home, Login, Registrierung, Dashboard, Explorer
+src/App.tsx             Routen (echte URLs wie /pricing; alte #/-Links werden umgeleitet)
+src/site.ts             Liste der Website-Seiten: steuert Routen, Navigation und Footer
+src/layouts.tsx         Layouts: Website (Header, Footer) und Wallet-App
+src/ui.tsx              Design-System-Komponenten (ButtonLink, PageHero, Section, Card, Badge, Stat)
+src/session.tsx         Login-Zustand für alle Seiten
+src/pages/              Home, Login, Registrierung, Dashboard, Explorer, Inhaltsseiten
 src/components/         Aktionen (Kaufen/Senden/Auszahlen), Rollen-Panels, KYC, Aktivität
 .github/workflows/      Keep-alive für Supabase
 public/brand/           Logo-Dateien (SVG/PNG), App-Icon, Social-Preview

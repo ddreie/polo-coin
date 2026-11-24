@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { Account, Tx } from '../api';
 import { money, shortHash, timeAgo } from '../format';
 
@@ -23,7 +24,7 @@ export default function Activity({ account, txs }: { account: Account; txs: Tx[]
     <section className="panel activity" aria-labelledby="act-h">
       <div className="panel-head">
         <h2 id="act-h">{all ? 'All network activity' : 'Your activity'}</h2>
-        <a href="#/explorer">Open the ledger</a>
+        <Link to="/explorer">Open the ledger</Link>
       </div>
       {txs.length === 0 ? (
         <p className="empty">No transactions yet. {account.role === 'patron' ? 'Buy PC to get started.' : 'Payments you send or receive will show up here.'}</p>
@@ -45,7 +46,7 @@ export default function Activity({ account, txs }: { account: Account; txs: Tx[]
                     {d.sign > 0 ? '+' : d.sign < 0 ? '−' : ''}PC {money(shown)}
                   </td>
                   <td data-label="Fee" className="num muted">{t.fee ? money(t.fee) : '—'}</td>
-                  <td data-label="Block"><a href={`#/explorer?b=${t.block}`} title={t.tx_hash}>#{t.block} <code>{shortHash(t.tx_hash)}</code></a></td>
+                  <td data-label="Block"><Link to={`/explorer?b=${t.block}`} title={t.tx_hash}>#{t.block} <code>{shortHash(t.tx_hash)}</code></Link></td>
                   <td data-label="When" className="muted">{timeAgo(t.created_at)}</td>
                 </tr>
               );

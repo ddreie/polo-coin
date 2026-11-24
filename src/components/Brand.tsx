@@ -1,12 +1,13 @@
+import { Link } from 'react-router-dom';
 import type { Role } from '../api';
 import { initials } from '../format';
 
 export function Logo() {
   return (
-    <a href="#/" className="logo" aria-label="Polo Coin home">
+    <Link to="/" className="logo" aria-label="Polo Coin home">
       <img src="/brand/mark-on-light.svg" width="34" height="34" alt="" />
       <span>Polo Coin</span>
-    </a>
+    </Link>
   );
 }
 

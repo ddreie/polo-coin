@@ -1,24 +1,17 @@
 import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
-import { DemoBanner, Logo } from '../components/Brand';
+import { Link } from 'react-router-dom';
+import { useSession } from '../session';
 import { money0, SWIFT } from '../format';
 
-export default function Home({ signedIn }: { signedIn: boolean }) {
+export default function Home() {
+  const signedIn = !!useSession().account;
   const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => { api.stats().then(setStats).catch(() => undefined); }, []);
 
   return (
-    <div className="page">
-      <DemoBanner />
-      <header className="topbar wrap">
-        <Logo />
-        <nav className="topnav">
-          <a href="#/explorer">Ledger</a>
-          <a className="btn btn-small" href={signedIn ? '#/app' : '#/login'}>{signedIn ? 'Open wallet' : 'Log in'}</a>
-        </nav>
-      </header>
-
-      <main>
+    <>
+      <div>
         <section className="hero wrap">
           <div className="hero-copy">
             <h1>Pay your polo team in Argentina the same minute.</h1>
@@ -28,8 +21,8 @@ export default function Home({ signedIn }: { signedIn: boolean }) {
               that settles instantly for 1&nbsp;%, and partner banks in Argentina pay it out in dollars.
             </p>
             <div className="hero-actions">
-              <a className="btn" href={signedIn ? '#/app' : '#/login'}>Try the demo</a>
-              <a className="btn btn-ghost" href="#/explorer">See the public ledger</a>
+              <Link className="btn btn-accent" to={signedIn ? '/app' : '/login'}>Try the demo</Link>
+              <Link className="btn btn-ghost" to="/explorer">See the public ledger</Link>
             </div>
           </div>
           <Race />
@@ -75,17 +68,12 @@ export default function Home({ signedIn }: { signedIn: boolean }) {
             Log in as the patron, pay the player, then log in as the player to see the money arrive.
           </p>
           <div className="hero-actions">
-            <a className="btn" href="#/login">Choose a demo account</a>
-            <a className="btn btn-ghost" href="#/register">Open your own account</a>
+            <Link className="btn" to="/login">Choose a demo account</Link>
+            <Link className="btn btn-ghost" to="/register">Open your own account</Link>
           </div>
         </section>
-      </main>
-
-      <footer className="footer wrap">
-        <span>Polo Coin is a student prototype for the FinTech &amp; InsurTech seminar, University of Zurich, HS 2026.</span>
-        <span>Not a real financial product.</span>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }
 
