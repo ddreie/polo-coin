@@ -9,6 +9,7 @@ const ROLES: { id: SignUp['role']; what: string }[] = [
   { id: 'patron', what: 'You fund a team and pay players and breeders. Starts with a simulated bank account of USD 100,000.' },
   { id: 'pro', what: 'You play for a patron and receive your fees in Polo Coin.' },
   { id: 'breeder', what: 'You sell or train polo ponies and receive payments in Polo Coin.' },
+  { id: 'groom', what: 'You care for the horses and receive your wages in Polo Coin.' },
 ];
 
 const COUNTRIES = ['Argentina', 'United Kingdom', 'United States', 'Switzerland', 'Germany', 'France', 'Spain', 'Uruguay'];

@@ -4,20 +4,22 @@ Web-Prototyp für das FinTech & InsurTech Seminar (UZH, HS 2026). Ein USD-gedeck
 
 ## Demo-Accounts
 
-Passwort für alle: `polo2026`. Am einfachsten startet man die **geführte Demo-Tour** (Startseite oder Login): sieben Schritte durch den ganzen Business Case, der Rollenwechsel passiert per Klick.
+Passwort für alle: `polo2026`. Am einfachsten startet man die **geführte Demo-Tour** (Startseite oder Login): acht Schritte durch den ganzen Business Case, der Rollenwechsel passiert per Klick.
 
 | Username | Person (fiktiv) | Rolle | Startzustand |
 |---|---|---|---|
 | `patron` | James Whitfield | Patron, UK | hat schon PC gekauft und den Spieler bezahlt; ein Escrow für die Stute «La Bonita» ist offen |
-| `pro` | Facundo Ríos | Profispieler, AR | hat PC erhalten und teils ausgezahlt; offene Zahlungsanforderung an den Patron (Gstaad) |
+| `pro` | Facundo Ríos | Profispieler, AR | hat PC erhalten und teils ausgezahlt; offene Zahlungsanforderung an den Patron (Gstaad); offener Win-Bonus für den Final |
+| `groom` | Martín Gómez | Groom, AR | erhält monatlich seinen Lohn per Dauerauftrag vom Patron |
 | `breeder` | Estancia La Aurora | Pferdezüchterin, AR | Verkäuferin im offenen Escrow |
 | `vet` | Dr. Lucía Ferrer | Tierärztin, AR | muss den Vet-Check im offenen Escrow melden |
+| `organizer` | Alpine Polo Events | Turnierveranstalter, CH | trägt das Resultat des Finals ein, das den Win-Bonus auslöst |
 | `bank` | Banco Pampa Sur | Partnerbank, AR | sieht alle Transaktionen, prüft KYC aus Argentinien |
 | `admin` | Polo Coin Treasury | Emittent, CH | Reserve, Erträge, KYC; kann die Demo zurücksetzen |
 
 Zusätzlich gibt es zwei offene Anmeldungen für die KYC-Prüfung: `charlotte` (Patronin, USA) und `valentina` (Spielerin, AR), ebenfalls mit `polo2026`. Das Escrow-Konto (`escrow`, Smart Contract) hat eine Wallet, man kann sich aber nicht einloggen.
 
-In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) umstellen; Konten aus Argentinien starten auf Spanisch.
+In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) umstellen; Konten aus Argentinien starten auf Spanisch. Unter «Pay → Receive» erzeugt man einen QR-Code mit Zahlungslink, unter «Activity» lädt man zu jeder Transaktion eine PDF-Quittung herunter.
 
 ## Geschäftsregeln (wie im Paper, IM-Version)
 
@@ -27,6 +29,8 @@ In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) um
 | Transfer | PC von Wallet zu Wallet, sofort | keine |
 | Zahlungsanforderung | Spieler/Breeder/Tierärztin fordert Betrag an, Zahler bezahlt per Klick (normaler Transfer) | keine |
 | Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Käufer kann vorher abbrechen | keine |
+| Win-Bonus | PC des Patrons gehen in die Contract-Wallet; der genannte Turnierveranstalter trägt «gewonnen» (→ an Spieler) oder «verloren» (→ zurück an Patron) ein; der Patron kann vorher abbrechen | keine |
+| Dauerauftrag | wöchentliche oder monatliche Zahlung; erste Rate sofort, fällige Raten werden ausgeführt, sobald die Wallet des Zahlers offen ist; «Pay next now» zahlt die nächste Rate sofort | keine |
 | Auszahlung (Burn) | PC wird vernichtet, USD aus der Reserve aufs Bankkonto | keine |
 
 Reserve: 30% als USD-Einlagen (MiCA Art. 54), 70% in T-Bills (≤ 93 Tage, GENIUS Act), angenommene Rendite 4.2%. Gesperrte PC im Escrow zählen zum Umlauf.

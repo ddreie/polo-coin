@@ -42,7 +42,7 @@ export default function Login() {
         <div className="login-intro">
           <h1>Log in to a demo wallet</h1>
           <p>
-            Pick an account to log in instantly. The easiest way in is the guided tour: seven steps through the
+            Pick an account to log in instantly. The easiest way in is the guided tour: eight steps through the
             whole business case, switching roles with one click.
           </p>
           <p><button className="btn btn-accent" onClick={() => { startTour(); goToStep(0); }}>Start the guided tour</button></p>
@@ -67,7 +67,7 @@ export default function Login() {
 
         <form className="login-form" onSubmit={submit}>
           <h2>Or log in manually</h2>
-          <p className="muted">Usernames: patron, pro, breeder, vet, bank, admin. Password for all: <code>{PASSWORD}</code></p>
+          <p className="muted">Usernames: patron, pro, breeder, groom, vet, organizer, bank, admin. Password for all: <code>{PASSWORD}</code></p>
           <div className="form-row">
             <label>Username<input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} /></label>
             <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>

@@ -44,11 +44,13 @@ export default function EscrowInfo() {
         </div>
       </Section>
 
-      <Section tone="dark" title="Next: more conditional payments">
+      <Section tone="dark" title="The same logic pays a win bonus">
         <p className="band-intro">
-          The same logic can pay a player’s win bonus as soon as the tournament organiser records the result, or release
-          prize money and entry fees at clubs. These are on our roadmap after the market launch.
+          A patron can lock a player’s win bonus for a final. When the tournament organiser records the result, the
+          contract pays the player or refunds the patron, without anyone having to remember or chase it. Prize money and
+          entry fees at clubs can follow the same pattern after the market launch.
         </p>
+        <button className="btn btn-on-dark" onClick={() => { startTour(); goToStep(TOUR.findIndex((s) => s.as === 'organizer')); }}>See the win bonus in the demo</button>
       </Section>
     </>
   );

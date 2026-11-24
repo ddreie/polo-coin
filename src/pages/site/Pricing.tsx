@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import BreakEven from '../../components/BreakEven';
 import { money0 } from '../../format';
 import { ButtonLink, Card, PageHero, Section } from '../../ui';
 
@@ -50,7 +51,12 @@ export default function Pricing() {
         </div>
       </Section>
 
-      <Section title="How Polo Coin earns money">
+      <Section id="break-even" title="When does Polo Coin pay for itself?"
+        intro="Set the yearly volume, how long coins stay in circulation and the fixed costs. The calculator shows fee and interest income against the costs.">
+        <BreakEven />
+      </Section>
+
+      <Section tone="cream" title="How Polo Coin earns money">
         <div className="split">
           <p>
             Two revenue streams. First, the 1% purchase fee, part of which goes to the partner banks for conversion

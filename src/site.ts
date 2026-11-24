@@ -9,6 +9,8 @@ export interface SitePage {
 }
 
 export const SITE_PAGES: SitePage[] = [
+  { path: '/case', label: 'The case', inNav: true, group: 'Company',
+    title: 'Polo Coin in five minutes', lede: 'The argument of the seminar paper, linked to the prototype.' },
   { path: '/how-it-works', label: 'How it works', inNav: true, group: 'Product',
     title: 'From patron to pampa in seconds',
     lede: 'Buy Polo Coin, pay your player, and the player is paid in US dollars in Argentina – the whole flow, step by step.' },
@@ -30,6 +32,8 @@ export const SITE_PAGES: SitePage[] = [
   { path: '/about', label: 'About', inNav: true, group: 'Company',
     title: 'A global sport deserves a global payment system',
     lede: 'Our vision, our mission, the team behind Polo Coin and the road from pilot to launch.' },
+  { path: '/faq', label: 'FAQ', group: 'Company',
+    title: 'Questions patrons and players ask', lede: 'Safety, costs and alternatives.' },
   { path: '/brand', label: 'Brand', group: 'Company',
     title: 'The Polo Coin brand',
     lede: 'Colours, typography and logo, and how to use them.' },

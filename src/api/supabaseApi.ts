@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Account, Api, Applicant, Escrow, Party, PayRequest, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Bonus, Escrow, Party, PayRequest, StandingOrder, Stats, Tx } from './types';
 
 /** Calls the api_* Postgres functions defined in supabase/setup.sql. */
 export function createSupabaseApi(url: string, key: string): Api {
@@ -42,6 +42,17 @@ export function createSupabaseApi(url: string, key: string): Api {
       rpc<PayRequest>('api_request_create', { p_token: t, p_payer: payer, p_amount: amount, p_memo: memo }).then(num),
     requestPay: (t, id) => rpc<PayRequest>('api_request_pay', { p_token: t, p_request: id }).then(num),
     requestDecline: (t, id) => rpc<PayRequest>('api_request_decline', { p_token: t, p_request: id }).then(num),
+    bonuses: (t) => rpc<Bonus[]>('api_bonuses', { p_token: t }).then((r) => r.map(num)),
+    bonusCreate: (t, player, organizer, amount, match) =>
+      rpc<Bonus>('api_bonus_create', { p_token: t, p_player: player, p_organizer: organizer, p_amount: amount, p_match: match }).then(num),
+    bonusResult: (t, id, won) => rpc<Bonus>('api_bonus_result', { p_token: t, p_bonus: id, p_won: won }).then(num),
+    bonusCancel: (t, id) => rpc<Bonus>('api_bonus_cancel', { p_token: t, p_bonus: id }).then(num),
+    standings: (t) => rpc<StandingOrder[]>('api_standings', { p_token: t }).then((r) => r.map(num)),
+    standingCreate: (t, payee, amount, memo, every) =>
+      rpc<StandingOrder>('api_standing_create', { p_token: t, p_payee: payee, p_amount: amount, p_memo: memo, p_every: every }).then(num),
+    standingPay: (t, id) => rpc<StandingOrder>('api_standing_pay', { p_token: t, p_order: id }).then(num),
+    standingCancel: (t, id) => rpc<StandingOrder>('api_standing_cancel', { p_token: t, p_order: id }).then(num),
+    standingRunDue: (t) => rpc<number>('api_standing_run_due', { p_token: t }),
   };
 }
 
@@ -49,7 +60,7 @@ export function createSupabaseApi(url: string, key: string): Api {
 function num<T>(o: T): T {
   const r = { ...o } as Record<string, unknown>;
   for (const k of ['usd', 'pc', 'amount', 'fee', 'reserve_usd', 'supply_pc', 'volume_pc', 'fees_pc', 'fees_usd',
-    'minted_pc', 'redeemed_pc', 'escrow_pc', 'escrows_open', 'escrows_done', 'wallets',
+    'minted_pc', 'redeemed_pc', 'escrow_pc', 'escrows_open', 'escrows_done', 'bonuses_open', 'wallets',
     'fee_rate', 'bank_share', 'reserve_yield', 'cash_share', 'tx_count']) {
     if (k in r && r[k] !== null) r[k] = Number(r[k]);
   }

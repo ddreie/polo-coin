@@ -83,6 +83,34 @@ const ES: Record<string, string> = {
   // KYC / misc
   'KYC verified': 'KYC verificado', 'KYC pending': 'KYC pendiente', 'KYC rejected': 'KYC rechazado',
   'Payment received': 'Pago recibido',
+  // Contracts
+  'Contracts': 'Contratos', 'Horse escrow': 'Escrow de caballos', 'Win bonus': 'Bono por victoria',
+  'The patron locks a bonus for a match. When the tournament organiser records the result, the contract pays the player or refunds the patron by itself.':
+    'El patrón bloquea un bono para un partido. Cuando el organizador registra el resultado, el contrato paga al jugador o reembolsa al patrón automáticamente.',
+  'Lock': 'Bloquear', 'Examine': 'Examinar', 'Settle': 'Liquidar', 'Play': 'Jugar',
+  'Buyer’s PC move into the contract wallet': 'Los PC del comprador pasan a la billetera del contrato',
+  'The named vet checks the horse': 'El veterinario designado revisa el caballo',
+  'Passed: paid to seller. Failed: back to buyer': 'Aprobado: se paga al vendedor. No aprobado: vuelve al comprador',
+  'The patron’s bonus moves into the contract': 'El bono del patrón pasa al contrato',
+  'The organiser records the result': 'El organizador registra el resultado',
+  'Won: paid to the player. Lost: back to the patron': 'Ganado: se paga al jugador. Perdido: vuelve al patrón',
+  'Patron': 'Patrón', 'Player': 'Jugador', 'Organiser': 'Organizador', 'Match': 'Partido',
+  'Paid to player': 'Pagado al jugador', 'Waiting for the result': 'Esperando el resultado',
+  'Match won': 'Partido ganado', 'Match lost': 'Partido perdido',
+  'Record: won': 'Registrar: ganado', 'Record: lost': 'Registrar: perdido', 'Record the result': 'Registrar el resultado', 'Record': 'Registrar',
+  'No win bonuses yet.': 'Todavía no hay bonos.', 'Promise a win bonus': 'Prometer un bono por victoria',
+  'Lock {x} PC as win bonus': 'Bloquear {x} PC como bono',
+  // Receive, standing orders
+  'Receive': 'Recibir', 'Standing orders': 'Pagos recurrentes',
+  'Show this code at the tournament. The payer scans it with the phone and the payment opens with everything filled in.':
+    'Muestra este código en el torneo. Quien paga lo escanea con el teléfono y el pago se abre con todo completado.',
+  'Link': 'Enlace', 'Copy link': 'Copiar enlace', 'Link copied': 'Enlace copiado', 'Any amount': 'Monto libre',
+  'Payment link from {name}. Check the amount and send.': 'Enlace de pago de {name}. Revisa el monto y envía.',
+  'Your standing orders': 'Tus pagos recurrentes', 'Standing orders paying you': 'Pagos recurrentes a tu favor',
+  'New standing order': 'Nuevo pago recurrente', 'How often': 'Frecuencia', 'Weekly': 'Semanal', 'Monthly': 'Mensual',
+  'weekly': 'semanal', 'monthly': 'mensual', 'next': 'próximo', 'cancelled': 'cancelado',
+  'Set up and pay first instalment': 'Crear y pagar la primera cuota', 'Standing order set up': 'Pago recurrente creado',
+  'Pay next now': 'Pagar la próxima ahora', 'Stop': 'Detener',
 };
 
 interface Ctx { lang: Lang; setLang: (l: Lang) => void; t: (en: string, vars?: Record<string, string | number>) => string }

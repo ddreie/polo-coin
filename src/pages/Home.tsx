@@ -94,7 +94,7 @@ export default function Home() {
         <div className="wrap cta-inner">
           <div>
             <h2>See it work in three minutes</h2>
-            <p>Seven steps through the whole business case: buy, pay, receive in Spanish, escrow a horse, let the vet release it, cash out, and check the reserve.</p>
+            <p>Eight steps through the whole business case: buy, pay, receive in Spanish, escrow a horse, let the vet release it, pay a win bonus, cash out, and check the reserve.</p>
           </div>
           <div className="hero-actions">
             <button className="btn btn-accent" onClick={tour}>Start the guided demo</button>

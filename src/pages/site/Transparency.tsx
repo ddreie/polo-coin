@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import StressTest from '../../components/StressTest';
 import { money0 } from '../../format';
 import { ButtonLink, Card, PageHero, Section, Stat } from '../../ui';
 import { useStats } from '../../useStats';
@@ -54,7 +55,12 @@ export default function Transparency() {
         </div>
       </Section>
 
-      <Section title="Our rules">
+      <Section id="stress-test" title="Stress test: what if everyone wants out?"
+        intro="A stablecoin can suffer a run like a bank: if many holders redeem at once and the reserve has to be sold at a loss, the last holders are not fully covered. Try it with the live reserve.">
+        <StressTest stats={s} />
+      </Section>
+
+      <Section tone="cream" title="Our rules">
         <ul className="checklist checklist-2">
           <li>PC is created only when US dollars arrive in the reserve, and destroyed when they leave.</li>
           <li>Every holder can redeem 1:1 at any time through the partner bank.</li>

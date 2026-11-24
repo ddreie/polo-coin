@@ -1,3 +1,4 @@
+import SeasonCalendar from '../../components/SeasonCalendar';
 import { Card, PageHero, Section } from '../../ui';
 
 const TEAM = ['Luisa Blumenthal', 'Andri Bühler', 'Dario Dreier', 'Ivan Massaro', 'Alyssa Victoria Pühringer', 'Janis Raschle'];
@@ -35,7 +36,11 @@ export default function About() {
         </ol>
       </Section>
 
-      <Section title="The team">
+      <Section id="seasons" title="Why the pilot runs in two seasons">
+        <SeasonCalendar />
+      </Section>
+
+      <Section tone="cream" title="The team">
         <ul className="team">
           {TEAM.map((n) => <li key={n}><span className="team-initials" aria-hidden="true">{n.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>{n}</li>)}
         </ul>

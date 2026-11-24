@@ -27,6 +27,11 @@
 --     Locked PC sit in the wallet of the escrow contract and stay in supply.
 --   * Payment requests: a professional asks a patron for a fee; the patron
 --     pays it with one click (a normal transfer).
+--   * Win bonus (smart contract): a patron locks a bonus for a player; the
+--     named tournament organiser records the result; won = paid to the
+--     player, lost = back to the patron.
+--   * Standing orders: weekly or monthly payments (e.g. a groom's wages),
+--     executed when due (whenever the payer's wallet is open) or on demand.
 --   * Reserve: at least 30 % held as USD deposits (MiCA Art. 54), the rest in
 --     US Treasury bills (up to 93 days); assumed yield 4.2 % p.a.
 --   * KYC: new users sign up with status 'pending'. They can log in but
@@ -49,7 +54,7 @@ create table polo.accounts (
   username      text unique not null,
   password_hash text not null,
   display_name  text not null,
-  role          text not null check (role in ('patron','pro','breeder','vet','bank','admin','contract')),
+  role          text not null check (role in ('patron','pro','breeder','groom','vet','organizer','bank','admin','contract')),
   org           text not null,
   country       text not null,
   wallet        text unique not null,
@@ -124,6 +129,35 @@ create table polo.requests (
 
 -- Row Level Security as a second safety net. The schema is not exposed to the
 -- API anyway; the api_* functions run as table owner and are not affected.
+create table polo.bonuses (
+  id           serial primary key,
+  patron_id    int not null references polo.accounts(id),
+  player_id    int not null references polo.accounts(id),
+  organizer_id int not null references polo.accounts(id),
+  amount       numeric(14,2) not null check (amount > 0),
+  match        text not null,                       -- e.g. the final the bonus is tied to
+  status       text not null default 'locked' check (status in ('locked','paid','refunded')),
+  won          boolean,
+  created_at   timestamptz not null default now(),
+  settled_at   timestamptz,
+  lock_block   bigint references polo.ledger(block),
+  settle_block bigint references polo.ledger(block)
+);
+
+create table polo.standing (
+  id         serial primary key,
+  payer_id   int not null references polo.accounts(id),
+  payee_id   int not null references polo.accounts(id),
+  amount     numeric(14,2) not null check (amount > 0),
+  memo       text,
+  every      text not null check (every in ('week','month')),
+  next_due   timestamptz not null,
+  active     boolean not null default true,
+  runs       int not null default 0,
+  created_at timestamptz not null default now(),
+  last_block bigint references polo.ledger(block)
+);
+
 alter table polo.accounts enable row level security;
 alter table polo.sessions enable row level security;
 alter table polo.reserve  enable row level security;
@@ -131,6 +165,8 @@ alter table polo.ledger   enable row level security;
 alter table polo.config   enable row level security;
 alter table polo.escrows  enable row level security;
 alter table polo.requests enable row level security;
+alter table polo.bonuses  enable row level security;
+alter table polo.standing enable row level security;
 
 -- ---------------------------------------------------------------------
 -- Internal helpers (not callable from the website)
@@ -250,6 +286,30 @@ language sql stable set search_path = '' as $$
     'payer_name',     (select display_name from polo.accounts where id = r.payer_id),
     'created_at', r.created_at, 'settled_at', r.settled_at,
     'tx_hash', (select tx_hash from polo.ledger where block = r.block))
+$$;
+
+create function polo.bonus_json(b polo.bonuses) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'id', b.id, 'amount', b.amount, 'match', b.match, 'status', b.status, 'won', b.won,
+    'patron_id', b.patron_id, 'player_id', b.player_id, 'organizer_id', b.organizer_id,
+    'patron_name',    (select display_name from polo.accounts where id = b.patron_id),
+    'player_name',    (select display_name from polo.accounts where id = b.player_id),
+    'organizer_name', (select display_name from polo.accounts where id = b.organizer_id),
+    'created_at', b.created_at, 'settled_at', b.settled_at,
+    'lock_hash',   (select tx_hash from polo.ledger where block = b.lock_block),
+    'settle_hash', (select tx_hash from polo.ledger where block = b.settle_block))
+$$;
+
+create function polo.standing_json(o polo.standing) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'id', o.id, 'amount', o.amount, 'memo', o.memo, 'every', o.every, 'next_due', o.next_due,
+    'active', o.active, 'runs', o.runs, 'created_at', o.created_at,
+    'payer_id', o.payer_id, 'payee_id', o.payee_id,
+    'payer_name', (select display_name from polo.accounts where id = o.payer_id),
+    'payee_name', (select display_name from polo.accounts where id = o.payee_id),
+    'last_hash',  (select tx_hash from polo.ledger where block = o.last_block))
 $$;
 
 create function polo.role_of(p_id int) returns text
@@ -378,13 +438,79 @@ begin
   return e;
 end $$;
 
+-- Win bonus: the patron locks the bonus in the contract wallet.
+create function polo.op_bonus_lock(p_patron int, p_player int, p_organizer int, p_amount numeric, p_match text) returns polo.bonuses
+language plpgsql set search_path = '' as $$
+declare v_amt numeric := polo.check_amount(p_amount); v_match text := trim(left(coalesce(p_match, ''), 80));
+        v_contract int := polo.contract_id(); a polo.accounts; b polo.bonuses; t polo.ledger;
+begin
+  if length(v_match) < 2 then raise exception 'Name the match the bonus is tied to, e.g. the final.'; end if;
+  if p_player = p_patron then raise exception 'You cannot promise a bonus to yourself.'; end if;
+  if not exists (select 1 from polo.accounts where id = p_player and kyc = 'verified' and role in ('pro','groom')) then
+    raise exception 'The bonus must go to a verified player or groom.';
+  end if;
+  if not exists (select 1 from polo.accounts where id = p_organizer and kyc = 'verified' and role = 'organizer') then
+    raise exception 'Choose the tournament organiser who records the result.';
+  end if;
+  perform 1 from polo.accounts where id in (p_patron, v_contract) order by id for update;
+  select * into a from polo.accounts where id = p_patron;
+  if a.pc < v_amt then
+    raise exception 'Insufficient PC balance (available: %).', a.pc;
+  end if;
+  insert into polo.bonuses (patron_id, player_id, organizer_id, amount, match)
+  values (p_patron, p_player, p_organizer, v_amt, v_match) returning * into b;
+  update polo.accounts set pc = pc - v_amt where id = p_patron;
+  update polo.accounts set pc = pc + v_amt where id = v_contract;
+  t := polo.append('lock', p_patron, v_contract, v_amt, 0, 'Win bonus #' || b.id || ': ' || v_match);
+  update polo.bonuses set lock_block = t.block where id = b.id returning * into b;
+  return b;
+end $$;
+
+-- Win bonus: the contract pays the player (won) or refunds the patron (lost or cancelled).
+create function polo.op_bonus_settle(p_bonus int, p_pay boolean, p_won boolean) returns polo.bonuses
+language plpgsql set search_path = '' as $$
+declare b polo.bonuses; v_contract int := polo.contract_id(); v_to int; t polo.ledger;
+begin
+  select * into b from polo.bonuses where id = p_bonus for update;
+  if b.id is null then raise exception 'Win bonus not found.'; end if;
+  if b.status <> 'locked' then raise exception 'Win bonus #% is already %.', b.id, b.status; end if;
+  v_to := case when p_pay then b.player_id else b.patron_id end;
+  perform 1 from polo.accounts where id in (v_to, v_contract) order by id for update;
+  update polo.accounts set pc = pc - b.amount where id = v_contract;
+  update polo.accounts set pc = pc + b.amount where id = v_to;
+  t := polo.append(case when p_pay then 'release' else 'refund' end, v_contract, v_to, b.amount, 0,
+                   'Win bonus #' || b.id || case when p_pay then ': match won, paid to player'
+                                             when p_won is false then ': match lost, refunded'
+                                             else ': cancelled by patron, refunded' end);
+  update polo.bonuses set status = case when p_pay then 'paid' else 'refunded' end,
+         won = p_won, settled_at = now(), settle_block = t.block
+   where id = b.id returning * into b;
+  return b;
+end $$;
+
+-- Standing order: pay the next instalment now and move the due date on by one period.
+create function polo.op_standing_run(p_order int) returns polo.ledger
+language plpgsql set search_path = '' as $$
+declare o polo.standing; t polo.ledger;
+begin
+  select * into o from polo.standing where id = p_order for update;
+  if o.id is null then raise exception 'Standing order not found.'; end if;
+  if not o.active then raise exception 'Standing order #% has been cancelled.', o.id; end if;
+  t := polo.op_transfer(o.payer_id, o.payee_id, o.amount, coalesce(o.memo, 'Standing order') || ' (standing order #' || o.id || ')');
+  update polo.standing set runs = runs + 1, last_block = t.block,
+         next_due = next_due + case when every = 'week' then interval '7 days' else interval '1 month' end
+   where id = o.id;
+  return t;
+end $$;
+
 -- Demo seed: fictional people and organisations, plus a short history so every page has data.
 create function polo.seed() returns void
 language plpgsql set search_path = '' as $$
 declare v_pw text := extensions.crypt('polo2026', extensions.gen_salt('bf'));
-        v_patron int; v_pro int; v_breeder int; v_vet int; v_t polo.ledger; v_e polo.escrows;
+        v_patron int; v_pro int; v_breeder int; v_vet int; v_groom int; v_org int; v_t polo.ledger; v_e polo.escrows;
+        v_b polo.bonuses; v_o int;
 begin
-  truncate polo.sessions, polo.requests, polo.escrows, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
+  truncate polo.sessions, polo.standing, polo.bonuses, polo.requests, polo.escrows, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
   insert into polo.config default values;
   insert into polo.reserve (usd) values (0);
   insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc) values
@@ -394,6 +520,8 @@ begin
     ('bank',    v_pw, 'Banco Pampa Sur',   'bank',    'Partner bank (fictional)','Argentina',      polo.wallet_of('bank'),         0, 0, 'verified'),
     ('admin',   v_pw, 'Polo Coin Treasury','admin',   'Issuer & reserve manager','Switzerland',    polo.wallet_of('admin'),        0, 0, 'verified'),
     ('vet',     v_pw, 'Dr. Lucía Ferrer',  'vet',     'Equine vet, Pilar (fictional)', 'Argentina', polo.wallet_of('vet'),         0, 0, 'verified'),
+    ('groom',   v_pw, 'Martín Gómez',      'groom',   'Groom, Team Blue Oak',    'Argentina',      polo.wallet_of('groom'),        0, 0, 'verified'),
+    ('organizer', v_pw, 'Alpine Polo Events','organizer','Tournament organiser (fictional)','Switzerland', polo.wallet_of('organizer'), 0, 0, 'verified'),
     -- The escrow smart contract holds locked PC. It has a wallet but nobody can log in to it.
     ('escrow', extensions.crypt(gen_random_uuid()::text, extensions.gen_salt('bf')), 'Polo Coin Escrow Contract', 'contract',
                'Smart contract', 'Switzerland', polo.wallet_of('escrow-contract'), 0, 0, 'verified');
@@ -408,10 +536,17 @@ begin
   select id into v_pro     from polo.accounts where username = 'pro';
   select id into v_breeder from polo.accounts where username = 'breeder';
   select id into v_vet     from polo.accounts where username = 'vet';
+  select id into v_groom   from polo.accounts where username = 'groom';
+  select id into v_org     from polo.accounts where username = 'organizer';
   perform polo.op_buy(v_patron, 60000);
   perform polo.op_transfer(v_patron, v_pro, 12000, 'Tournament fee, Snow Polo St. Moritz');
   perform polo.op_redeem(v_pro, 4000);
   v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 18000, 'Mare "La Bonita", 7 years');
+  v_b := polo.op_bonus_lock(v_patron, v_pro, v_org, 3000, 'Final, Alpine Polo Cup');
+  -- The groom's monthly wages: paid once already, next instalment due in a month.
+  insert into polo.standing (payer_id, payee_id, amount, memo, every, next_due)
+  values (v_patron, v_groom, 2500, 'Monthly wages', 'month', now()) returning id into v_o;
+  perform polo.op_standing_run(v_o);
   -- One open payment request: the player asks for the next tournament fee.
   insert into polo.requests (requester_id, payer_id, amount, memo)
   values (v_pro, v_patron, 9500, 'Tournament fee, Polo Gold Cup Gstaad');
@@ -569,6 +704,115 @@ begin
 end $$;
 
 -- Own transactions; bank and admin see the whole ledger.
+-- ---------------------------------------------------------------------
+-- Win bonus (smart contract tied to a match result)
+-- ---------------------------------------------------------------------
+create or replace function public.api_bonus_create(p_token uuid, p_player int, p_organizer int, p_amount numeric, p_match text) returns json
+language plpgsql security definer set search_path = '' as $$
+begin
+  return polo.bonus_json(polo.op_bonus_lock(polo.auth_verified(p_token), p_player, p_organizer, p_amount, p_match));
+end $$;
+
+-- The named organiser records the result; the contract settles immediately.
+create or replace function public.api_bonus_result(p_token uuid, p_bonus int, p_won boolean) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); b polo.bonuses;
+begin
+  select * into b from polo.bonuses where id = p_bonus;
+  if b.id is null then raise exception 'Win bonus not found.'; end if;
+  if b.organizer_id <> v_id then raise exception 'Only the organiser named in win bonus #% can record the result.', b.id; end if;
+  return polo.bonus_json(polo.op_bonus_settle(b.id, p_won, p_won));
+end $$;
+
+create or replace function public.api_bonus_cancel(p_token uuid, p_bonus int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); b polo.bonuses;
+begin
+  select * into b from polo.bonuses where id = p_bonus;
+  if b.id is null then raise exception 'Win bonus not found.'; end if;
+  if b.patron_id <> v_id then raise exception 'Only the patron can cancel win bonus #%.', b.id; end if;
+  return polo.bonus_json(polo.op_bonus_settle(b.id, false, null));
+end $$;
+
+create or replace function public.api_bonuses(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_role text := polo.role_of(v_id);
+begin
+  return (select coalesce(json_agg(polo.bonus_json(b) order by (b.status = 'locked') desc, b.id desc), '[]')
+            from polo.bonuses b
+           where v_role in ('admin','bank') or v_id in (b.patron_id, b.player_id, b.organizer_id));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Standing orders (recurring payments)
+-- ---------------------------------------------------------------------
+create or replace function public.api_standing_create(p_token uuid, p_payee int, p_amount numeric, p_memo text, p_every text) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount); o polo.standing;
+begin
+  if p_every not in ('week','month') then raise exception 'Choose weekly or monthly.'; end if;
+  if p_payee = v_id then raise exception 'You cannot pay yourself.'; end if;
+  if not exists (select 1 from polo.accounts where id = p_payee and kyc = 'verified' and role <> 'contract') then
+    raise exception 'Recipient not found or not verified.';
+  end if;
+  if (select count(*) from polo.standing where payer_id = v_id and active) >= 10 then
+    raise exception 'Demo limit: max. 10 active standing orders.';
+  end if;
+  insert into polo.standing (payer_id, payee_id, amount, memo, every, next_due)
+  values (v_id, p_payee, v_amt, nullif(trim(left(p_memo, 120)), ''), p_every, now()) returning * into o;
+  perform polo.op_standing_run(o.id);    -- the first instalment is paid right away
+  select * into o from polo.standing where id = o.id;
+  return polo.standing_json(o);
+end $$;
+
+-- Pay the next instalment now (the demo cannot wait a month).
+create or replace function public.api_standing_pay(p_token uuid, p_order int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); o polo.standing;
+begin
+  select * into o from polo.standing where id = p_order;
+  if o.id is null or o.payer_id <> v_id then raise exception 'Standing order not found.'; end if;
+  perform polo.op_standing_run(o.id);
+  select * into o from polo.standing where id = o.id;
+  return polo.standing_json(o);
+end $$;
+
+create or replace function public.api_standing_cancel(p_token uuid, p_order int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); o polo.standing;
+begin
+  select * into o from polo.standing where id = p_order for update;
+  if o.id is null or v_id not in (o.payer_id) then raise exception 'Standing order not found.'; end if;
+  update polo.standing set active = false where id = o.id returning * into o;
+  return polo.standing_json(o);
+end $$;
+
+-- Execute all instalments of the caller that are due. Called whenever the payer's wallet refreshes.
+create or replace function public.api_standing_run_due(p_token uuid) returns int
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_n int := 0; r record;
+begin
+  for r in select id from polo.standing
+            where payer_id = v_id and active and next_due <= now()
+            order by next_due limit 12 loop
+    begin
+      perform polo.op_standing_run(r.id);
+      v_n := v_n + 1;
+    exception when others then
+      null;   -- e.g. not enough PC: the instalment stays due
+    end;
+  end loop;
+  return v_n;
+end $$;
+
+create or replace function public.api_standings(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token);
+begin
+  return (select coalesce(json_agg(polo.standing_json(o) order by o.active desc, o.id desc), '[]')
+            from polo.standing o where v_id in (o.payer_id, o.payee_id));
+end $$;
+
 create or replace function public.api_transactions(p_token uuid, p_limit int default 50) returns json
 language plpgsql security definer set search_path = '' as $$
 declare v_id int := polo.auth(p_token); v_role text;
@@ -608,6 +852,7 @@ language sql security definer set search_path = '' as $$
     'escrow_pc',    (select coalesce(sum(pc), 0) from polo.accounts where role = 'contract'),
     'escrows_open', (select count(*) from polo.escrows where status = 'locked'),
     'escrows_done', (select count(*) from polo.escrows where status <> 'locked'),
+    'bonuses_open', (select count(*) from polo.bonuses where status = 'locked'),
     'wallets',      (select count(*) from polo.accounts where kyc = 'verified' and role <> 'contract'),
     'fee_rate',     (select fee_rate from polo.config),
     'bank_share',   (select bank_share from polo.config),
@@ -641,8 +886,8 @@ begin
   if length(coalesce(v_name, '')) < 2 or length(v_name) > 60 then
     raise exception 'Please enter your full name (max. 60 characters).';
   end if;
-  if p_role not in ('patron','pro','breeder') then
-    raise exception 'Choose patron, professional player or breeder.';
+  if p_role not in ('patron','pro','breeder','groom') then
+    raise exception 'Choose patron, professional player, breeder or groom.';
   end if;
   if length(coalesce(v_country, '')) < 2 or length(v_country) > 40 or length(v_org) > 60 then
     raise exception 'Please enter a country (and an organisation of max. 60 characters).';
@@ -665,7 +910,7 @@ end $$;
 -- Who may review whom: the treasury reviews everyone, the partner bank reviews applicants from Argentina.
 create function polo.can_review(p_reviewer polo.accounts, p_applicant polo.accounts) returns boolean
 language sql stable set search_path = '' as $$
-  select p_applicant.role not in ('bank','admin','vet','contract')
+  select p_applicant.role not in ('bank','admin','vet','organizer','contract')
      and (p_reviewer.role = 'admin' or (p_reviewer.role = 'bank' and p_applicant.country = 'Argentina'))
 $$;
 

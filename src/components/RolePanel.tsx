@@ -12,8 +12,10 @@ export default function RolePanel() {
   switch (account.role) {
     case 'patron': return <Patron />;
     case 'pro':
-    case 'breeder': return <Receiver />;
+    case 'breeder':
+    case 'groom': return <Receiver />;
     case 'vet': return <Vet />;
+    case 'organizer': return <Organizer />;
     case 'bank': return <Bank />;
     case 'admin': return <Treasury />;
     default: return null;
@@ -52,11 +54,12 @@ function Patron() {
 function Receiver() {
   const { account, txs } = useWallet();
   const got = txs.filter((t) => (t.kind === 'transfer' || t.kind === 'release') && t.to_id === account.id);
+  const title = account.role === 'pro' ? 'Your earnings' : account.role === 'groom' ? 'Your wages' : 'Your sales';
   const vol = got.reduce((s, t) => s + t.amount, 0);
   const out = txs.filter((t) => t.kind === 'redeem' && t.from_id === account.id).reduce((s, t) => s + t.amount, 0);
   return (
     <section className="panel role">
-      <h2>{account.role === 'pro' ? 'Your earnings' : 'Your sales'}</h2>
+      <h2>{title}</h2>
       <Figures items={[
         ['Payments received', String(got.length)],
         ['Received in total', `PC ${money0(vol)}`, 'Receiving is always free'],
@@ -79,6 +82,22 @@ function Vet() {
         ['Value secured', `PC ${money0(mine.reduce((s, e) => s + e.amount, 0))}`, 'Purchase prices you confirmed or are examining'],
       ]} />
       <p className="hint">Your report is the trigger of the smart contract: “passed” pays the seller, “failed” refunds the buyer. <Link to="/app/escrow">Open escrows</Link></p>
+    </section>
+  );
+}
+
+function Organizer() {
+  const { account, bonuses } = useWallet();
+  const mine = bonuses.filter((b) => b.organizer_id === account.id);
+  return (
+    <section className="panel role">
+      <h2>Match results</h2>
+      <Figures items={[
+        ['Waiting for a result', String(mine.filter((b) => b.status === 'locked').length)],
+        ['Results recorded', String(mine.filter((b) => b.status !== 'locked').length)],
+        ['Bonuses secured', `PC ${money0(mine.reduce((s, b) => s + b.amount, 0))}`, 'Win bonuses tied to your matches'],
+      ]} />
+      <p className="hint">Your result is the trigger of the smart contract: “won” pays the player, “lost” refunds the patron. <Link to="/app/escrow?type=bonus">Open win bonuses</Link></p>
     </section>
   );
 }

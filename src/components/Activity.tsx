@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { Account, Tx } from '../api';
 import { money, shortHash, timeAgo } from '../format';
 import { useT } from '../i18n';
+import { downloadReceipt } from '../receipt';
 
 const KIND_LABEL: Record<Tx['kind'], string> = {
   genesis: 'Genesis', mint: 'Buy', transfer: 'Transfer', redeem: 'Cash-out', lock: 'Escrow', release: 'Escrow', refund: 'Escrow',
@@ -44,7 +45,7 @@ export default function Activity({ account, txs, limit }: { account: Account; tx
       ) : (
         <table className="tx-table">
           <thead>
-            <tr><th>What</th><th>Reference</th><th className="num">Amount</th><th className="num">Fee</th><th>Block</th><th>When</th></tr>
+            <tr><th>What</th><th>Reference</th><th className="num">Amount</th><th className="num">Fee</th><th>Block</th><th>When</th><th><span className="sr-only">Receipt</span></th></tr>
           </thead>
           <tbody>
             {shown.map((tx) => {
@@ -59,6 +60,7 @@ export default function Activity({ account, txs, limit }: { account: Account; tx
                   <td data-label="Fee" className="num muted">{tx.fee ? `USD ${money(tx.fee)}` : '—'}</td>
                   <td data-label="Block"><Link to={`/explorer?b=${tx.block}`} title={tx.tx_hash}>#{tx.block} <code>{shortHash(tx.tx_hash)}</code></Link></td>
                   <td data-label="When" className="muted">{timeAgo(tx.created_at)}</td>
+                  <td data-label="Receipt"><button className="linklike receipt-btn" onClick={() => downloadReceipt(tx, account)} title="Download PDF receipt">PDF</button></td>
                 </tr>
               );
             })}

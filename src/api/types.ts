@@ -1,4 +1,4 @@
-export type Role = 'patron' | 'pro' | 'breeder' | 'vet' | 'bank' | 'admin' | 'contract';
+export type Role = 'patron' | 'pro' | 'breeder' | 'groom' | 'vet' | 'organizer' | 'bank' | 'admin' | 'contract';
 export type Kyc = 'pending' | 'verified' | 'rejected';
 
 export interface Account {
@@ -31,7 +31,7 @@ export interface SignUp {
   username: string;
   password: string;
   display_name: string;
-  role: 'patron' | 'pro' | 'breeder';
+  role: 'patron' | 'pro' | 'breeder' | 'groom';
   org: string;
   country: string;
 }
@@ -71,6 +71,7 @@ export interface Stats {
   escrow_pc: number;
   escrows_open: number;
   escrows_done: number;
+  bonuses_open: number;
   wallets: number;
   /** Fee on every purchase of PC. */
   fee_rate: number;
@@ -96,6 +97,36 @@ export interface Escrow {
   lock_hash: string | null;
   settle_hash: string | null;
   contract_wallet: string;
+}
+
+export type BonusStatus = 'locked' | 'paid' | 'refunded';
+
+export interface Bonus {
+  id: number;
+  amount: number;
+  match: string;
+  status: BonusStatus;
+  won: boolean | null;
+  patron_id: number; player_id: number; organizer_id: number;
+  patron_name: string; player_name: string; organizer_name: string;
+  created_at: string;
+  settled_at: string | null;
+  lock_hash: string | null;
+  settle_hash: string | null;
+}
+
+export interface StandingOrder {
+  id: number;
+  amount: number;
+  memo: string | null;
+  every: 'week' | 'month';
+  next_due: string;
+  active: boolean;
+  runs: number;
+  created_at: string;
+  payer_id: number; payee_id: number;
+  payer_name: string; payee_name: string;
+  last_hash: string | null;
 }
 
 export type RequestStatus = 'open' | 'paid' | 'declined';
@@ -140,4 +171,16 @@ export interface Api {
   requestCreate(token: string, payer: number, amount: number, memo: string): Promise<PayRequest>;
   requestPay(token: string, request: number): Promise<PayRequest>;
   requestDecline(token: string, request: number): Promise<PayRequest>;
+  /** Win bonus: patron locks it, the organiser's result settles it. */
+  bonuses(token: string): Promise<Bonus[]>;
+  bonusCreate(token: string, player: number, organizer: number, amount: number, match: string): Promise<Bonus>;
+  bonusResult(token: string, bonus: number, won: boolean): Promise<Bonus>;
+  bonusCancel(token: string, bonus: number): Promise<Bonus>;
+  /** Standing orders: weekly or monthly payments. The first instalment is paid at once. */
+  standings(token: string): Promise<StandingOrder[]>;
+  standingCreate(token: string, payee: number, amount: number, memo: string, every: 'week' | 'month'): Promise<StandingOrder>;
+  standingPay(token: string, order: number): Promise<StandingOrder>;
+  standingCancel(token: string, order: number): Promise<StandingOrder>;
+  /** Execute the caller's instalments that are due; returns how many were paid. */
+  standingRunDue(token: string): Promise<number>;
 }

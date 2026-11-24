@@ -3,7 +3,7 @@ import { SiteLayout } from './layouts';
 import AppShell from './app/AppShell';
 import Overview from './app/Overview';
 import Pay from './app/Pay';
-import EscrowPage from './app/EscrowPage';
+import Contracts from './app/Contracts';
 import ActivityPage from './app/ActivityPage';
 import ReviewPage from './app/ReviewPage';
 import { SessionProvider } from './session';
@@ -20,6 +20,8 @@ import Transparency from './pages/site/Transparency';
 import Security from './pages/site/Security';
 import About from './pages/site/About';
 import Brand from './pages/site/Brand';
+import Case from './pages/site/Case';
+import Faq from './pages/site/Faq';
 import { ToastHost } from './components/Toast';
 
 /** Old links used hash routes (#/login, #/explorer?b=4). Send them to the new paths. */
@@ -45,6 +47,8 @@ export default function App() {
             <Route path="security" element={<Security />} />
             <Route path="about" element={<About />} />
             <Route path="brand" element={<Brand />} />
+            <Route path="case" element={<Case />} />
+            <Route path="faq" element={<Faq />} />
             <Route path="explorer" element={<Explorer />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
@@ -53,7 +57,7 @@ export default function App() {
           <Route path="app" element={<AppShell />}>
             <Route index element={<Overview />} />
             <Route path="pay" element={<Pay />} />
-            <Route path="escrow" element={<EscrowPage />} />
+            <Route path="escrow" element={<Contracts />} />
             <Route path="activity" element={<ActivityPage />} />
             <Route path="review" element={<ReviewPage />} />
             <Route path="*" element={<Navigate to="/app" replace />} />

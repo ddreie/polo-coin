@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import QRCode from 'qrcode';
 import { useSearchParams } from 'react-router-dom';
 import { api, type Party, type Role } from '../api';
 import { Avatar } from '../components/Brand';
@@ -8,7 +9,7 @@ import { money, money0, roleLabel, shortHash, SWIFT } from '../format';
 import { useT } from '../i18n';
 import { useWallet } from '../wallet';
 
-type Tab = 'buy' | 'send' | 'request' | 'redeem';
+type Tab = 'buy' | 'send' | 'request' | 'receive' | 'recurring' | 'redeem';
 
 const MEMOS: Partial<Record<Role, Partial<Record<Role, string[]>>>> = {
   patron: { pro: ['Tournament fee', 'Monthly retainer', 'Win bonus'], breeder: ['Horse purchase', 'Training & board'], vet: ['Vet examination'] },
@@ -31,6 +32,8 @@ export default function Pay() {
     ...(canBuy ? [{ id: 'buy' as Tab, label: t('Buy PC') }] : []),
     { id: 'send', label: t('Send PC') },
     ...(canRequest ? [{ id: 'request' as Tab, label: t('Request') }] : []),
+    { id: 'receive', label: t('Receive') },
+    { id: 'recurring', label: t('Standing orders') },
     { id: 'redeem', label: t('Cash out') },
   ];
   const asked = params.get('tab') as Tab | null;
@@ -50,6 +53,8 @@ export default function Pay() {
         {tab === 'buy' && <Buy />}
         {tab === 'send' && <Send />}
         {tab === 'request' && <RequestForm />}
+        {tab === 'receive' && <Receive />}
+        {tab === 'recurring' && <Recurring />}
         {tab === 'redeem' && <Redeem />}
       </section>
       <BalanceAside />
@@ -155,12 +160,15 @@ function Send() {
   const { token, account, parties } = useWallet();
   const { t } = useT();
   const others = useMemo(() => parties.filter((p) => p.id !== account.id && p.role !== 'admin' && p.role !== 'bank'), [parties, account.id]);
+  const [params] = useSearchParams();
+  const linkTo = Number(params.get('to')) || null;
   const [to, setTo] = useState<number | null>(null);
-  const [v, setV] = useState('');
-  const [memo, setMemo] = useState('');
+  const [v, setV] = useState(params.get('amount') ?? '');
+  const [memo, setMemo] = useState(params.get('memo') ?? '');
   const { busy, error, run, setError } = useSubmit();
 
   useEffect(() => {
+    if (linkTo && others.some((o) => o.id === linkTo) && to === null) { setTo(linkTo); return; }
     if (to === null && others.length) {
       const pref: Role[] = account.role === 'patron' ? ['pro'] : account.role === 'pro' ? ['breeder'] : ['pro'];
       setTo((others.find((o) => pref.includes(o.role)) ?? others[0]).id);
@@ -186,6 +194,7 @@ function Send() {
   return (
     <form className="action" onSubmit={submit}>
       <p className="action-help">{t('Sending PC is free and final within seconds, any day of the week.')}</p>
+      {linkTo && rec && rec.id === linkTo && <p className="note">{t('Payment link from {name}. Check the amount and send.', { name: rec.display_name })}</p>}
       <PartyPicker list={others} value={to} onChange={setTo} legend={t('Recipient')} />
       <AmountInput value={v} onChange={setV} cur="PC" max={account.pc} />
       <label className="memo">
@@ -272,5 +281,124 @@ function Redeem() {
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="btn btn-wide" disabled={busy || amt <= 0}>{busy ? t('Cashing out…') : `${t('Cash out')}${amt > 0 ? ` · USD ${money(amt)}` : ''}`}</button>
     </form>
+  );
+}
+
+/** Show a QR code (and link) that opens the payer's wallet with this account, amount and reference filled in. */
+function Receive() {
+  const { account } = useWallet();
+  const { t } = useT();
+  const [v, setV] = useState('');
+  const [memo, setMemo] = useState('');
+  const [svg, setSvg] = useState('');
+  const link = useMemo(() => {
+    const q = new URLSearchParams({ tab: 'send', to: String(account.id) });
+    if (Number(v) > 0) q.set('amount', String(Number(v)));
+    if (memo.trim()) q.set('memo', memo.trim());
+    return `${window.location.origin}/app/pay?${q}`;
+  }, [account.id, v, memo]);
+  useEffect(() => {
+    QRCode.toString(link, { type: 'svg', margin: 1, color: { dark: '#0F4027', light: '#FFFFFF' }, errorCorrectionLevel: 'M' })
+      .then(setSvg).catch(() => setSvg(''));
+  }, [link]);
+
+  return (
+    <div className="action receive">
+      <p className="action-help">{t('Show this code at the tournament. The payer scans it with the phone and the payment opens with everything filled in.')}</p>
+      <div className="receive-grid">
+        <div>
+          <AmountInput value={v} onChange={setV} cur="PC" />
+          <label className="memo">
+            <span>{t('Reference')}</span>
+            <input value={memo} maxLength={120} placeholder={t('What is this payment for?')} onChange={(e) => setMemo(e.target.value)} />
+          </label>
+          <p className="muted small">{t('Link')}: <a href={link}>{link.replace(window.location.origin, '')}</a></p>
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => { navigator.clipboard?.writeText(link); toast.ok(t('Link copied')); }}>{t('Copy link')}</button>
+        </div>
+        <figure className="qr-card">
+          <div className="qr" aria-label="QR code" dangerouslySetInnerHTML={{ __html: svg }} />
+          <figcaption><strong>{account.display_name}</strong><span>{Number(v) > 0 ? `PC ${money(Number(v))}` : t('Any amount')}{memo ? ` · ${memo}` : ''}</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  );
+}
+
+/** Weekly or monthly payments, e.g. a groom's wages. The first instalment is paid at once. */
+function Recurring() {
+  const { token, account, parties, standings } = useWallet();
+  const { t } = useT();
+  const payees = useMemo(() => parties.filter((p) => p.id !== account.id && !['admin', 'bank', 'contract'].includes(p.role))
+    .sort((a, b) => Number(b.role === 'groom') - Number(a.role === 'groom')), [parties, account.id]);
+  const [payee, setPayee] = useState<number | null>(null);
+  const [v, setV] = useState('');
+  const [memo, setMemo] = useState('');
+  const [every, setEvery] = useState<'week' | 'month'>('month');
+  const { busy, error, run } = useSubmit();
+  useEffect(() => { if (payee === null && payees.length) setPayee(payees[0].id); }, [payees, payee]);
+  const amt = Number(v) || 0;
+  const mine = standings.filter((o) => o.payer_id === account.id);
+  const incoming = standings.filter((o) => o.payee_id === account.id);
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    run(async () => {
+      const o = await api.standingCreate(token, Number(payee), amt, memo, every);
+      toast.ok(t('Standing order set up'), `First instalment of PC ${money(o.amount)} paid to ${o.payee_name}. Next one on ${new Date(o.next_due).toLocaleDateString('en-GB')}.`);
+      setV(''); setMemo('');
+    });
+  }
+
+  return (
+    <div className="action">
+      {mine.length > 0 && <StandingList list={mine} outgoing />}
+      {incoming.length > 0 && <StandingList list={incoming} />}
+      {account.kyc === 'verified' && (
+        <form onSubmit={submit} className="recurring-form">
+          <h3>{t('New standing order')}</h3>
+          <PartyPicker list={payees} value={payee} onChange={setPayee} legend={t('Recipient')} />
+          <AmountInput value={v} onChange={setV} cur="PC" />
+          <div className="every" role="group" aria-label={t('How often')}>
+            {(['week', 'month'] as const).map((x) => (
+              <button type="button" key={x} aria-pressed={every === x} onClick={() => setEvery(x)}>{x === 'week' ? t('Weekly') : t('Monthly')}</button>
+            ))}
+          </div>
+          <label className="memo">
+            <span>{t('Reference')}</span>
+            <input value={memo} maxLength={120} placeholder="e.g. Monthly wages" onChange={(e) => setMemo(e.target.value)} />
+          </label>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="btn btn-wide" disabled={busy || amt <= 0 || !payee}>{t('Set up and pay first instalment')}</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function StandingList({ list, outgoing }: { list: import('../api').StandingOrder[]; outgoing?: boolean }) {
+  const { token } = useWallet();
+  const { t } = useT();
+  const { busy, error, run } = useSubmit();
+  return (
+    <div className="standing-list">
+      <h3>{outgoing ? t('Your standing orders') : t('Standing orders paying you')}</h3>
+      {list.map((o) => (
+        <div key={o.id} className={`todo${o.active ? '' : ' todo-quiet'}`}>
+          <div>
+            <strong>PC {money(o.amount)} {o.every === 'week' ? t('weekly') : t('monthly')} {outgoing ? `→ ${o.payee_name}` : `← ${o.payer_name}`}</strong>
+            <small>{o.memo ?? ''} · {o.runs} {t('paid')} · {o.active ? `${t('next')} ${new Date(o.next_due).toLocaleDateString('en-GB')}` : t('cancelled')}</small>
+          </div>
+          {outgoing && o.active && (
+            <div className="todo-actions">
+              <button className="btn btn-small" disabled={busy} onClick={() => run(async () => {
+                await api.standingPay(token, o.id); toast.ok(`Paid PC ${money(o.amount)} to ${o.payee_name}`, 'Next instalment moved on by one period.');
+              })}>{t('Pay next now')}</button>
+              <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => run(async () => { await api.standingCancel(token, o.id); })}>{t('Stop')}</button>
+            </div>
+          )}
+        </div>
+      ))}
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>
   );
 }

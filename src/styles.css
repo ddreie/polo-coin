@@ -720,3 +720,106 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
 .swatch p { margin-top: auto; font-size: .9rem; }
 @media (max-width: 760px) { .swatches { grid-template-columns: 1fr; } }
 .type-scale p { margin: 0 0 12px; line-height: 1.15; }
+
+/* ---------- Contracts, receive, standing orders ---------- */
+.avatar-groom { background: #d9b88f; color: var(--forest-deep); }
+.avatar-organizer { background: var(--orange); color: var(--forest-deep); }
+.contract-tabs { margin-bottom: var(--space-4); max-width: 420px; }
+.receive-grid { display: grid; grid-template-columns: 1fr 260px; gap: var(--space-4); align-items: start; }
+.receive-grid > div { display: grid; gap: 12px; }
+@media (max-width: 640px) { .receive-grid { grid-template-columns: 1fr; } }
+.qr-card { margin: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-l); padding: 16px; display: grid; gap: 10px; text-align: center; }
+.qr svg { width: 100%; height: auto; display: block; }
+.qr-card figcaption { display: grid; gap: 2px; font-size: .9rem; }
+.qr-card figcaption span { color: var(--muted); font-size: .84rem; }
+.every { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; width: fit-content; }
+.every button { background: var(--paper); border: 0; padding: 9px 18px; font-weight: 600; cursor: pointer; }
+.every button[aria-pressed=true] { background: var(--forest); color: var(--cream); }
+.recurring-form { display: grid; gap: 14px; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.recurring-form h3, .standing-list h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.standing-list { display: grid; gap: 8px; margin-bottom: var(--space-3); }
+.receipt-btn { font-size: .78rem; font-weight: 700; color: var(--forest); border: 1px solid var(--line) !important; border-radius: 6px; padding: 2px 8px !important; }
+.receipt-btn:hover { background: var(--cream-soft) !important; }
+.actions .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.actions .tab { white-space: nowrap; flex: 0 0 auto; }
+
+/* ---------- The case, FAQ, calculators, seasons ---------- */
+.linklike-strong { background: none; border: 0; padding: 0; color: var(--forest); font-weight: 600; text-decoration: underline; cursor: pointer; font-size: 1rem; }
+.table-scroll { overflow-x: auto; }
+.canvas { display: grid; grid-template-columns: repeat(10, 1fr); grid-template-areas:
+  "kp kp ka ka vp vp cr cr cs cs"
+  "kp kp kr kr vp vp ch ch cs cs"
+  "co co co co co rs rs rs rs rs"; gap: 8px; margin-bottom: var(--space-4); }
+.canvas-cell { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 14px 16px; }
+.canvas-cell h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--orange-deep); margin-bottom: 8px; }
+.canvas-cell ul { margin: 0; padding-left: 16px; font-size: .9rem; display: grid; gap: 4px; }
+.canvas-kp { grid-area: kp; } .canvas-ka { grid-area: ka; } .canvas-kr { grid-area: kr; } .canvas-cr { grid-area: cr; }
+.canvas-ch { grid-area: ch; } .canvas-cs { grid-area: cs; } .canvas-co { grid-area: co; } .canvas-rs { grid-area: rs; }
+.canvas-vp { grid-area: vp; background: var(--forest); color: var(--cream); border-color: transparent; }
+.canvas-vp h3 { color: var(--orange); }
+@media (max-width: 860px) { .canvas { grid-template-columns: 1fr; grid-template-areas: "vp" "cs" "ch" "cr" "kp" "ka" "kr" "rs" "co"; } }
+.compare-table th.col-pc, .compare-table td.col-pc { background: var(--forest); color: var(--cream); font-weight: 600; }
+.compare-table { background: var(--paper); }
+.swot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: var(--space-4); }
+.swot-q { border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); }
+.swot-q h3 { font-size: 1rem; }
+.swot-q ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: .95rem; }
+.swot-s { background: var(--forest); color: var(--cream); } .swot-s h3 { color: var(--cream); }
+.swot-w { background: var(--cream-soft); }
+.swot-o { background: var(--cream); }
+.swot-t { background: var(--paper); border: 1px solid var(--line); }
+@media (max-width: 640px) { .swot { grid-template-columns: 1fr; } }
+.tows-h { margin-top: var(--space-3); }
+.tows { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin: 0 0 var(--space-4); }
+.tows div { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: start; }
+.tows dt { background: var(--orange); color: var(--forest-deep); font-weight: 800; border-radius: 6px; text-align: center; padding: 2px 0; font-size: .85rem; }
+.tows dd { margin: 0; }
+@media (max-width: 760px) { .tows { grid-template-columns: 1fr; } }
+.map-table { background: transparent; }
+.band-dark .data-table th { color: rgba(235, 207, 173, .7); border-bottom-color: var(--orange); }
+.band-dark .data-table td { border-bottom-color: rgba(235, 207, 173, .15); }
+
+/* Stress test and break-even */
+.stress, .breakeven { display: grid; gap: var(--space-3); }
+.stress { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-l); padding: var(--space-4); }
+.stress-inputs, .be-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.be-inputs { grid-template-columns: repeat(3, 1fr); }
+.stress-inputs label, .be-inputs label { display: grid; gap: 8px; font-size: .92rem; }
+input[type=range] { accent-color: var(--orange); width: 100%; }
+@media (max-width: 760px) { .stress-inputs, .be-inputs { grid-template-columns: 1fr; } }
+.stress-bar { display: flex; height: 26px; border-radius: 999px; overflow: hidden; background: var(--cream-soft); }
+.sb-cash { background: var(--orange); } .sb-bills { background: var(--cream); } .sb-left { background: var(--forest); }
+.stress-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+.stress-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.stress-verdict { margin: 0; font-size: 1.02rem; padding: 12px 16px; border-left: 4px solid var(--ok); background: #e7f2ea; border-radius: var(--radius-s); }
+.stress-verdict.warn { border-left-color: var(--orange); background: var(--cream-soft); }
+.be-market { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.be-market div { background: var(--cream-soft); border-radius: var(--radius-m); padding: 12px 14px; display: grid; gap: 4px; font-size: .88rem; }
+.be-market strong { font-size: 1.1rem; }
+.be-market .be-gap { background: var(--forest); color: var(--cream); }
+@media (max-width: 760px) { .be-market { grid-template-columns: 1fr; } }
+
+/* Season calendar */
+.seasons { margin: 0; display: grid; gap: var(--space-3); }
+.seasons-grid { display: grid; gap: 6px; overflow-x: auto; }
+.seasons-head, .seasons-row { display: grid; grid-template-columns: 220px repeat(12, minmax(36px, 1fr)); gap: 2px; align-items: center; min-width: 680px; }
+.seasons-head span { font-size: .75rem; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: .05em; }
+.seasons-label { display: grid; }
+.seasons-label small { color: var(--muted); font-size: .8rem; }
+.seasons-bar { height: 34px; border-radius: 8px; display: flex; align-items: center; padding: 0 10px; overflow: hidden; }
+.seasons-bar em { font-style: normal; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.seasons-us { background: var(--forest); color: var(--cream); }
+.seasons-eu { background: var(--forest); color: var(--cream); }
+.seasons-ar { background: var(--cream); color: var(--forest); }
+.seasons-snow { background: var(--cream-soft); border: 1px dashed var(--line); }
+.seasons-us em, .seasons-eu em { background: var(--orange); color: var(--forest-deep); padding: 2px 8px; border-radius: 999px; }
+.seasons figcaption { color: var(--muted); max-width: 70ch; }
+
+/* FAQ */
+.faq { display: grid; gap: 10px; max-width: 860px; }
+.faq details { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 0 18px; }
+.faq summary { cursor: pointer; font-weight: 600; padding: 16px 0; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.faq summary::after { content: '+'; color: var(--orange-deep); font-weight: 700; }
+.faq details[open] summary::after { content: '–'; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq-a { padding: 0 0 16px; color: #2b3832; }

@@ -19,9 +19,12 @@ unless they write in another language; the website itself is in English.
 Business rules (as in the paper): 1 PC = 1 USD; buying (mint) costs a 1% fee on top, paid in USD and split 50/50
 between treasury (`admin`) and partner bank (`bank`); transfers, payment requests and cash-out (burn) are free.
 Escrow: buyer locks PC in the contract wallet (role `contract`); the named vet (role `vet`) reports the examination
-and the contract pays the seller or refunds the buyer. Invariant: USD reserve = PC in circulation (incl. escrow).
+and the contract pays the seller or refunds the buyer. Win bonus: the patron locks PC for a player; the named
+organiser (role `organizer`) records won/lost and the contract pays or refunds. Standing orders pay weekly/monthly;
+due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Invariant: USD reserve = PC in
+circulation (incl. PC locked in contracts).
 Business logic lives in `polo.op_*` (SQL) and the `op*` functions in `localApi.ts`; the seed uses them too.
-Demo accounts: `patron`, `pro`, `breeder`, `vet`, `bank`, `admin`, password `polo2026` (all fictional).
+Demo accounts: `patron`, `pro`, `breeder`, `groom`, `vet`, `organizer`, `bank`, `admin`, password `polo2026` (all fictional).
 
 ## How to deliver a change
 

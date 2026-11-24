@@ -45,7 +45,7 @@ function AppHeader() {
         <nav className="app-nav" aria-label="Wallet">
           <NavLink to="/app" end>{t('Overview')}{count > 0 && <span className="nav-count">{count}</span>}</NavLink>
           {account.role !== 'vet' && <NavLink to="/app/pay">{t('Pay')}</NavLink>}
-          <NavLink to="/app/escrow">{t('Escrow')}</NavLink>
+          <NavLink to="/app/escrow">{t('Contracts')}</NavLink>
           <NavLink to="/app/activity">{t('Activity')}</NavLink>
           {staff && <NavLink to="/app/review">{t('Review')}</NavLink>}
         </nav>

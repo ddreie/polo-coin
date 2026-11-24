@@ -26,7 +26,7 @@ export default function Overview() {
             <KycBadge kyc={account.kyc} />
           </p>
         </div>
-        {verified && account.role !== 'vet' && (
+        {verified && account.role !== 'vet' && account.role !== 'organizer' && (
           <div className="quick-actions">
             {(account.role === 'patron' || account.usd > 0) && <Link className="btn btn-accent" to="/app/pay?tab=buy">{t('Buy PC')}</Link>}
             <Link className="btn" to="/app/pay?tab=send">{t('Send PC')}</Link>
@@ -62,10 +62,10 @@ export default function Overview() {
 
 function Todos() {
   const { account, requests } = useWallet();
-  const { toPay, toExamine, waiting } = useTodos();
+  const { toPay, toExamine, toDecide, waiting, bonusWaiting } = useTodos();
   const { t } = useT();
   const mine = requests.filter((r) => r.status === 'open' && r.requester_id === account.id);
-  const nothing = !toPay.length && !toExamine.length && !waiting.length && !mine.length;
+  const nothing = !toPay.length && !toExamine.length && !toDecide.length && !waiting.length && !bonusWaiting.length && !mine.length;
 
   return (
     <section className="panel todos" aria-labelledby="todo-h">
@@ -76,6 +76,18 @@ function Todos() {
         <div key={e.id} className="todo">
           <div><strong>Examine {e.item}</strong><small>Escrow #{e.id}: {e.buyer_name} buys from {e.seller_name}, PC {money(e.amount)}</small></div>
           <Link className="btn btn-accent btn-small" to="/app/escrow">Report result</Link>
+        </div>
+      ))}
+      {toDecide.map((b) => (
+        <div key={`b${b.id}`} className="todo">
+          <div><strong>{t('Record the result')}: {b.match}</strong><small>Win bonus #{b.id}: PC {money(b.amount)} from {b.patron_name} for {b.player_name}</small></div>
+          <Link className="btn btn-accent btn-small" to="/app/escrow?type=bonus">{t('Record')}</Link>
+        </div>
+      ))}
+      {bonusWaiting.map((b) => (
+        <div key={`bw${b.id}`} className="todo todo-quiet">
+          <div><strong>{t('Win bonus')}: {b.match}</strong><small>PC {money(b.amount)} locked for {b.player_name} · {t('Waiting for the result')}</small></div>
+          <Link to="/app/escrow?type=bonus">{t('Contracts')}</Link>
         </div>
       ))}
       {waiting.map((e) => (

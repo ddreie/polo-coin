@@ -1,4 +1,4 @@
-import type { Account, Api, Applicant, Escrow, Party, PayRequest, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Bonus, Escrow, Party, PayRequest, StandingOrder, Stats, Tx } from './types';
 import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
 
 /**
@@ -6,7 +6,7 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser. Keep it in sync with the SQL rules.
  */
-const KEY = 'polo-coin-demo-v4';
+const KEY = 'polo-coin-demo-v5';
 const FEE_RATE = 0.01;      // on every purchase of PC
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.042;
@@ -16,6 +16,9 @@ type Stored = Account & { password: string; created_at: string; kyc_by: number |
 type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
   & { lock_block: number | null; settle_block: number | null };
 type StoredRequest = Omit<PayRequest, 'requester_name' | 'payer_name' | 'tx_hash'> & { block: number | null };
+type StoredBonus = Omit<Bonus, 'patron_name' | 'player_name' | 'organizer_name' | 'lock_hash' | 'settle_hash'>
+  & { lock_block: number | null; settle_block: number | null };
+type StoredStanding = Omit<StandingOrder, 'payer_name' | 'payee_name' | 'last_hash'> & { last_block: number | null };
 
 interface State {
   accounts: Stored[];
@@ -24,6 +27,8 @@ interface State {
   ledger: Tx[];
   escrows: StoredEscrow[];
   requests: StoredRequest[];
+  bonuses: StoredBonus[];
+  standing: StoredStanding[];
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -130,6 +135,58 @@ async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed:
   return e;
 }
 
+async function opBonusLock(s: State, patron: Stored, player: number, organizer: number, amount: number, match: string) {
+  const amt = checkAmount(amount);
+  const what = match.trim().slice(0, 80);
+  if (what.length < 2) throw new Error('Name the match the bonus is tied to, e.g. the final.');
+  if (player === patron.id) throw new Error('You cannot promise a bonus to yourself.');
+  const pl = byId(s, player);
+  if (!pl || pl.kyc !== 'verified' || !['pro', 'groom'].includes(pl.role)) throw new Error('The bonus must go to a verified player or groom.');
+  const org = byId(s, organizer);
+  if (!org || org.kyc !== 'verified' || org.role !== 'organizer') throw new Error('Choose the tournament organiser who records the result.');
+  if (patron.pc < amt) throw new Error(`Insufficient PC balance (available: ${patron.pc.toFixed(2)}).`);
+  const contract = byRole(s, 'contract');
+  const b: StoredBonus = {
+    id: s.bonuses.length + 1, amount: amt, match: what, status: 'locked', won: null,
+    patron_id: patron.id, player_id: player, organizer_id: organizer, created_at: now(), settled_at: null, lock_block: null, settle_block: null,
+  };
+  s.bonuses.push(b);
+  patron.pc = round2(patron.pc - amt);
+  contract.pc = round2(contract.pc + amt);
+  b.lock_block = (await append(s, 'lock', patron.id, contract.id, amt, 0, `Win bonus #${b.id}: ${what}`)).block;
+  return b;
+}
+
+async function opBonusSettle(s: State, id: number, pay: boolean, won: boolean | null) {
+  const b = s.bonuses.find((x) => x.id === id);
+  if (!b) throw new Error('Win bonus not found.');
+  if (b.status !== 'locked') throw new Error(`Win bonus #${b.id} is already ${b.status}.`);
+  const contract = byRole(s, 'contract');
+  const to = byId(s, pay ? b.player_id : b.patron_id)!;
+  contract.pc = round2(contract.pc - b.amount);
+  to.pc = round2(to.pc + b.amount);
+  const why = pay ? ': match won, paid to player' : won === false ? ': match lost, refunded' : ': cancelled by patron, refunded';
+  const t = await append(s, pay ? 'release' : 'refund', contract.id, to.id, b.amount, 0, `Win bonus #${b.id}${why}`);
+  Object.assign(b, { status: pay ? 'paid' : 'refunded', won, settled_at: now(), settle_block: t.block });
+  return b;
+}
+
+const addPeriod = (iso: string, every: 'week' | 'month') => {
+  const d = new Date(iso);
+  if (every === 'week') d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+};
+
+async function opStandingRun(s: State, id: number) {
+  const o = s.standing.find((x) => x.id === id);
+  if (!o) throw new Error('Standing order not found.');
+  if (!o.active) throw new Error(`Standing order #${o.id} has been cancelled.`);
+  const payer = byId(s, o.payer_id)!;
+  const t = await opTransfer(s, payer, o.payee_id, o.amount, `${o.memo ?? 'Standing order'} (standing order #${o.id})`);
+  Object.assign(o, { runs: o.runs + 1, last_block: t.block, next_due: addPeriod(o.next_due, o.every) });
+  return t;
+}
+
 async function seed(): Promise<State> {
   const mk = async (id: number, username: string, display_name: string, role: Account['role'],
     org: string, country: string, usd: number, kyc: Account['kyc'] = 'verified', ageMin = 0): Promise<Stored> => ({
@@ -146,12 +203,14 @@ async function seed(): Promise<State> {
       await mk(4, 'bank', 'Banco Pampa Sur', 'bank', 'Partner bank (fictional)', 'Argentina', 0),
       await mk(5, 'admin', 'Polo Coin Treasury', 'admin', 'Issuer & reserve manager', 'Switzerland', 0),
       await mk(6, 'vet', 'Dr. Lucía Ferrer', 'vet', 'Equine vet, Pilar (fictional)', 'Argentina', 0),
-      await mk(7, 'escrow', 'Polo Coin Escrow Contract', 'contract', 'Smart contract', 'Switzerland', 0),
+      await mk(7, 'groom', 'Martín Gómez', 'groom', 'Groom, Team Blue Oak', 'Argentina', 0),
+      await mk(8, 'organizer', 'Alpine Polo Events', 'organizer', 'Tournament organiser (fictional)', 'Switzerland', 0),
+      await mk(9, 'escrow', 'Polo Coin Escrow Contract', 'contract', 'Smart contract', 'Switzerland', 0),
       // Two open sign-up applications, so the KYC review can be shown right away.
-      await mk(8, 'charlotte', 'Charlotte Hayes', 'patron', 'Team Hollow Creek', 'United States', 100000, 'pending', 120),
-      await mk(9, 'valentina', 'Valentina Arrieta', 'pro', '4-goal professional', 'Argentina', 0, 'pending', 25),
+      await mk(10, 'charlotte', 'Charlotte Hayes', 'patron', 'Team Hollow Creek', 'United States', 100000, 'pending', 120),
+      await mk(11, 'valentina', 'Valentina Arrieta', 'pro', '4-goal professional', 'Argentina', 0, 'pending', 25),
     ],
-    sessions: {}, reserve: 0, ledger: [], escrows: [], requests: [],
+    sessions: {}, reserve: 0, ledger: [], escrows: [], requests: [], bonuses: [], standing: [],
   };
   await append(s, 'genesis', null, null, 0, 0, 'Polo Coin genesis block');
   // Starting history, as in polo.seed()
@@ -160,6 +219,11 @@ async function seed(): Promise<State> {
   await opTransfer(s, patron, pro.id, 12000, 'Tournament fee, Snow Polo St. Moritz');
   await opRedeem(s, pro, 4000);
   await opEscrowLock(s, patron, 3, 6, 18000, 'Mare "La Bonita", 7 years');
+  await opBonusLock(s, patron, pro.id, 8, 3000, 'Final, Alpine Polo Cup');
+  // The groom's monthly wages: paid once already, next instalment due in a month.
+  s.standing.push({ id: 1, payer_id: patron.id, payee_id: 7, amount: 2500, memo: 'Monthly wages', every: 'month',
+    next_due: now(), active: true, runs: 0, created_at: now(), last_block: null });
+  await opStandingRun(s, 1);
   s.requests.push({ id: 1, requester_id: pro.id, payer_id: patron.id, amount: 9500, memo: 'Tournament fee, Polo Gold Cup Gstaad',
     status: 'open', created_at: now(), settled_at: null, block: null });
   return s;
@@ -181,13 +245,22 @@ function requestOut(s: State, r: StoredRequest): PayRequest {
   const { block, ...rest } = r;
   return { ...rest, requester_name: name(s, r.requester_id), payer_name: name(s, r.payer_id), tx_hash: hashOf(s, block) };
 }
+function bonusOut(s: State, b: StoredBonus): Bonus {
+  const { lock_block, settle_block, ...rest } = b;
+  return { ...rest, patron_name: name(s, b.patron_id), player_name: name(s, b.player_id), organizer_name: name(s, b.organizer_id),
+    lock_hash: hashOf(s, lock_block), settle_hash: hashOf(s, settle_block) };
+}
+function standingOut(s: State, o: StoredStanding): StandingOrder {
+  const { last_block, ...rest } = o;
+  return { ...rest, payer_name: name(s, o.payer_id), payee_name: name(s, o.payee_id), last_hash: hashOf(s, last_block) };
+}
 function publicAccount(s: State, a: Stored): Account {
   const { password: _pw, created_at: _c, kyc_by, ...rest } = a;
   return { ...rest, kyc_by_name: byId(s, kyc_by)?.display_name ?? null };
 }
 /** Treasury reviews everyone, the partner bank reviews applicants from Argentina. */
 function canReview(r: Stored, a: Stored) {
-  return !['bank', 'admin', 'vet', 'contract'].includes(a.role) && (r.role === 'admin' || (r.role === 'bank' && a.country === 'Argentina'));
+  return !['bank', 'admin', 'vet', 'organizer', 'contract'].includes(a.role) && (r.role === 'admin' || (r.role === 'bank' && a.country === 'Argentina'));
 }
 
 export function createLocalApi(): Api {
@@ -250,7 +323,7 @@ export function createLocalApi(): Api {
       if (!/^[a-z0-9_]{3,20}$/.test(username)) throw new Error('Username: 3 to 20 characters, only letters, digits and _.');
       if ((f.password ?? '').length < 6) throw new Error('Password: at least 6 characters.');
       if (nm.length < 2 || nm.length > 60) throw new Error('Please enter your full name (max. 60 characters).');
-      if (!['patron', 'pro', 'breeder'].includes(f.role)) throw new Error('Choose patron, professional player or breeder.');
+      if (!['patron', 'pro', 'breeder', 'groom'].includes(f.role)) throw new Error('Choose patron, professional player, breeder or groom.');
       if (country.length < 2 || country.length > 40 || org.length > 60) throw new Error('Please enter a country (and an organisation of max. 60 characters).');
       if (s.accounts.some((a) => a.username === username)) throw new Error('This username is taken. Please choose another one.');
       if (s.accounts.length >= 200) throw new Error('Demo limit reached. Ask the treasury to reset the demo.');
@@ -309,6 +382,7 @@ export function createLocalApi(): Api {
         escrow_pc: byRole(s, 'contract').pc,
         escrows_open: s.escrows.filter((e) => e.status === 'locked').length,
         escrows_done: s.escrows.filter((e) => e.status !== 'locked').length,
+        bonuses_open: s.bonuses.filter((b) => b.status === 'locked').length,
         wallets: s.accounts.filter((a) => a.kyc === 'verified' && a.role !== 'contract').length,
         fee_rate: FEE_RATE, bank_share: BANK_SHARE, reserve_yield: RESERVE_YIELD, cash_share: CASH_SHARE,
         chain_valid: s.ledger.every((t, i) => t.prev_hash === (i ? s.ledger[i - 1].tx_hash : GENESIS_PREV)),
@@ -401,6 +475,70 @@ export function createLocalApi(): Api {
       Object.assign(r, { status: 'declined', settled_at: now() });
       save(s);
       return requestOut(s, r);
+    },
+    async bonuses(token) {
+      const { s, acc } = await auth(token);
+      const all = acc.role === 'bank' || acc.role === 'admin';
+      return s.bonuses.filter((b) => all || [b.patron_id, b.player_id, b.organizer_id].includes(acc.id))
+        .sort((a, b) => Number(b.status === 'locked') - Number(a.status === 'locked') || b.id - a.id)
+        .map((b) => bonusOut(s, b));
+    },
+    bonusCreate: (token, player, organizer, amount, match) =>
+      tx(token, async (s, acc) => bonusOut(s, await opBonusLock(s, acc, player, organizer, amount, match))),
+    bonusResult: (token, id, won) => tx(token, async (s, acc) => {
+      const b = s.bonuses.find((x) => x.id === id);
+      if (!b) throw new Error('Win bonus not found.');
+      if (b.organizer_id !== acc.id) throw new Error(`Only the organiser named in win bonus #${b.id} can record the result.`);
+      return bonusOut(s, await opBonusSettle(s, id, won, won));
+    }),
+    bonusCancel: (token, id) => tx(token, async (s, acc) => {
+      const b = s.bonuses.find((x) => x.id === id);
+      if (!b) throw new Error('Win bonus not found.');
+      if (b.patron_id !== acc.id) throw new Error(`Only the patron can cancel win bonus #${b.id}.`);
+      return bonusOut(s, await opBonusSettle(s, id, false, null));
+    }),
+    async standings(token) {
+      const { s, acc } = await auth(token);
+      return s.standing.filter((o) => o.payer_id === acc.id || o.payee_id === acc.id)
+        .sort((a, b) => Number(b.active) - Number(a.active) || b.id - a.id).map((o) => standingOut(s, o));
+    },
+    standingCreate: (token, payee, amount, memo, every) => tx(token, async (s, acc) => {
+      const amt = checkAmount(amount);
+      if (every !== 'week' && every !== 'month') throw new Error('Choose weekly or monthly.');
+      if (payee === acc.id) throw new Error('You cannot pay yourself.');
+      const p = byId(s, payee);
+      if (!p || p.kyc !== 'verified' || p.role === 'contract') throw new Error('Recipient not found or not verified.');
+      if (s.standing.filter((o) => o.payer_id === acc.id && o.active).length >= 10) throw new Error('Demo limit: max. 10 active standing orders.');
+      const o: StoredStanding = { id: s.standing.length + 1, payer_id: acc.id, payee_id: payee, amount: amt,
+        memo: memo.trim().slice(0, 120) || null, every, next_due: now(), active: true, runs: 0, created_at: now(), last_block: null };
+      s.standing.push(o);
+      await opStandingRun(s, o.id);
+      return standingOut(s, o);
+    }),
+    standingPay: (token, id) => tx(token, async (s, acc) => {
+      const o = s.standing.find((x) => x.id === id);
+      if (!o || o.payer_id !== acc.id) throw new Error('Standing order not found.');
+      await opStandingRun(s, id);
+      return standingOut(s, o);
+    }),
+    async standingCancel(token, id) {
+      await delay();
+      const { s, acc } = await auth(token);
+      const o = s.standing.find((x) => x.id === id);
+      if (!o || o.payer_id !== acc.id) throw new Error('Standing order not found.');
+      o.active = false;
+      save(s);
+      return standingOut(s, o);
+    },
+    async standingRunDue(token) {
+      const { s, acc } = await auth(token);
+      let n = 0;
+      for (const o of s.standing.filter((x) => x.payer_id === acc.id && x.active && x.next_due <= now()).slice(0, 12)) {
+        const backup = JSON.stringify(s);
+        try { await opStandingRun(s, o.id); n++; } catch { Object.assign(s, JSON.parse(backup)); }
+      }
+      if (n) save(s);
+      return n;
     },
   };
 }
