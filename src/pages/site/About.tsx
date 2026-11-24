@@ -1,7 +1,7 @@
+import { TeamMedals } from '../../components/Team';
 import SeasonCalendar from '../../components/SeasonCalendar';
 import { Card, PageHero, Section, Cite, Notes } from '../../ui';
 
-const TEAM = ['Luisa Blumenthal', 'Andri Bühler', 'Dario Dreier', 'Ivan Massaro', 'Alyssa Victoria Pühringer', 'Janis Raschle'];
 
 const ROADMAP = [
   { when: 'Until mid-2028', title: 'Preparation', points: ['Licences: FINMA (Switzerland), MiCA (one EU member state)', 'Contracts with custodian, European and Argentine partner banks', 'Move from the prototype ledger to a public blockchain', 'Polo Coin app with identity checks'] },
@@ -40,10 +40,8 @@ export default function About() {
         <SeasonCalendar />
       </Section>
 
-      <Section tone="cream" title="The team">
-        <ul className="team">
-          {TEAM.map((n) => <li key={n}><span className="team-initials" aria-hidden="true">{n.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>{n}</li>)}
-        </ul>
+      <Section tone="cream" id="team" title="The team" intro="Six students at the University of Zurich, working in three pairs.">
+        <TeamMedals />
         <p className="muted">
           Seminar “FinTech &amp; InsurTech – Digitalization of the Financial Services Industry”, Swiss FinTech Innovation Lab,
           University of Zurich, autumn semester 2026. Lecturer: Prof. Dr. Thomas Puschmann.<Cite id="paper" />

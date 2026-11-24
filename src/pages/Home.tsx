@@ -5,6 +5,7 @@ import { money0, SWIFT } from '../format';
 import { useSession } from '../session';
 import { ButtonLink, Cite, Notes, Section } from '../ui';
 import { useStats } from '../useStats';
+import { TeamStack } from '../components/Team';
 
 const Coin = lazy(() => import('../components/Coin'));
 
@@ -109,6 +110,20 @@ export default function Home() {
           <div><h3>Verifiable ledger</h3><p>Each transaction carries the fingerprint of the one before. Change one, and the chain breaks. <Link to="/explorer">Verify it yourself</Link>.</p></div>
         </div>
       </Section>
+
+      <section className="band band-plain team-band" aria-labelledby="team-h">
+        <div className="wrap"><div className="team-band-inner">
+          <div>
+            <h2 id="team-h">Six students, one coin</h2>
+            <p className="band-intro">
+              Polo Coin was designed and built in the FinTech &amp; InsurTech seminar at the University of Zurich, from the
+              business case to the working prototype.
+            </p>
+            <p className="more"><Link to="/about#team">Meet the team</Link></p>
+          </div>
+          <TeamStack />
+        </div></div>
+      </section>
 
       <section className="cta-band">
         <div className="wrap cta-inner">

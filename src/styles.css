@@ -1141,3 +1141,44 @@ input:not([type=radio]) { border-radius: var(--radius-s); }
   .race-pc th, .race-pc td { background: transparent; }
   .race-pc .num { padding-right: 0 !important; }
 }
+
+/* ---------- Team: portraits struck like coins ---------- */
+:root { --gold: #c9a24a; --gold-light: #ecd08a; }
+.medal { position: relative; display: block; width: var(--m); aspect-ratio: 1 / 1.18; flex: none; }
+.medal-l { --m: 200px; }
+.medal-s { --m: 124px; }
+.medal-disc, .medal-rim { position: absolute; left: 0; right: 0; bottom: 0; aspect-ratio: 1; border-radius: 50%; }
+.medal-disc { background: radial-gradient(circle at 35% 30%, #175c39, var(--forest) 55%, var(--forest-deep)); }
+/* gold rim: outer band, thin dark groove, fine inner line */
+.medal-rim { pointer-events: none; box-shadow: inset 0 0 0 calc(var(--m) * .035) var(--gold), inset 0 0 0 calc(var(--m) * .045) rgba(10, 46, 28, .55), inset 0 0 0 calc(var(--m) * .052) var(--gold-light);
+  clip-path: inset(46% -2px -2px -2px); }
+.medal-disc::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 calc(var(--m) * .035) var(--gold), inset 0 0 0 calc(var(--m) * .045) rgba(10, 46, 28, .55), inset 0 0 0 calc(var(--m) * .052) var(--gold-light); }
+/* the portrait: square on top, round at the bottom, so the head rises above the rim */
+.medal-clip { position: absolute; inset: 0; overflow: hidden; border-radius: 0 0 calc(var(--m) / 2) calc(var(--m) / 2); }
+.medal-clip img { position: absolute; left: -9%; bottom: -4%; width: 118%; height: auto; }
+
+.medals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5) var(--space-4); margin-bottom: var(--space-5); }
+.medals li { display: grid; justify-items: center; text-align: center; gap: 4px; }
+.medals .medal { margin-bottom: 16px; }
+.medals strong { font-size: 1.15rem; letter-spacing: -0.01em; }
+.medals span:not(.medal):not([class^="medal"]) { color: var(--muted); font-size: .95rem; }
+@media (max-width: 760px) { .medals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .medal-l { --m: 150px; } }
+
+.team-band-inner { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: var(--space-5); align-items: center; border-top: 1px solid var(--rule); padding-top: 22px; }
+.team-band h2 { margin: 0 0 16px; max-width: 14ch; }
+.team-band .band-intro { color: var(--muted); max-width: 46ch; }
+.coin-row { display: flex; justify-content: flex-end; padding: 8px 0; text-decoration: none; }
+.coin-row-item { position: relative; transition: transform .2s ease-out; }
+.coin-row-item + .coin-row-item { margin-left: -10px; }
+.coin-row-item:nth-child(even) { transform: translateY(14px); }
+.coin-row:hover .coin-row-item:hover, .coin-row:focus-visible .coin-row-item { transform: translateY(-8px); z-index: 2; }
+@media (max-width: 860px) {
+  .team-band-inner { grid-template-columns: 1fr; }
+  .coin-row { justify-content: flex-start; }
+  .medal-s { --m: 100px; }
+}
+@media (max-width: 600px) {
+  .medal-s { --m: 62px; }
+  .coin-row-item + .coin-row-item { margin-left: -6px; }
+  .coin-row-item:nth-child(even) { transform: translateY(8px); }
+}
