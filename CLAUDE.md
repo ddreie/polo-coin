@@ -39,5 +39,12 @@ Demo accounts: `patron`, `pro`, `breeder`, `bank`, `admin`, password `polo2026` 
 - Never put secrets in the repo. The publishable key in `src/config.ts` is public by design; the
   `service_role` key must never appear anywhere.
 - All people, banks and organisations in the demo are fictional; keep it that way.
-- Keep the visual language (tokens at the top of `src/styles.css`: turf green, chalk, brass, celeste; Archivo font).
+- Keep the corporate identity (decided 24.11.2026): tokens at the top of `src/styles.css` – Forest Green `#0F4027`
+  (base, ~60 %), Old Cream `#EBCFAD` (secondary, ~30 %), Burnt Orange `#F26A1E` (accent, ≤10 %, never as text on
+  cream); Helvetica family with Arial fallback. Use the logo files in `public/brand/` (logo 1A: coin ring, crossed
+  mallets, orange ball; simplified `icon-*` version at 32 px and below). Regenerate them with
+  `python3 scripts/brand/generate.py`, never hand-edit the SVGs. The old token names (`--turf`, `--brass`,
+  `--celeste`, …) are aliases for the redesign transition; new code uses `--forest`, `--cream`, `--orange`.
+- The redesign (multi-page site, new features) happens on the branch `redesign`; plan: "Polo Coin – Plan zum finalen
+  Prototyp" (Claude doc of the team).
 - The README (German) explains the project for the team; update it when the setup changes.

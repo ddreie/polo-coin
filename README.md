@@ -52,7 +52,21 @@ src/api/                Zugriff auf die API (Supabase) und lokaler Demo-Modus
 src/pages/              Home, Login, Registrierung, Dashboard, Explorer
 src/components/         Aktionen (Kaufen/Senden/Auszahlen), Rollen-Panels, KYC, Aktivität
 .github/workflows/      Keep-alive für Supabase
+public/brand/           Logo-Dateien (SVG/PNG), App-Icon, Social-Preview
+scripts/brand/          Generator für die Logo-Dateien
 ```
+
+## Corporate Identity
+
+| Rolle | Farbe | Hex | Einsatz |
+|---|---|---|---|
+| Basis (ca. 60 %) | Forest Green | `#0F4027` | Hero, Navigation, Text auf hellem Grund |
+| Sekundär (ca. 30 %) | Old Cream | `#EBCFAD` | Sektionen, Karten, Text auf Grün |
+| Akzent (max. 10 %) | Burnt Orange | `#F26A1E` | Buttons, Highlights, Ball im Logo – nie als Text auf Creme |
+
+Schrift: Helvetica-Familie, auf Windows Arial als Fallback. Die Tokens stehen oben in `src/styles.css`.
+
+Logo 1A (Münzring, gekreuzte Mallets, oranger Ball) liegt in `public/brand/` in vier Farbvarianten (`on-dark`, `on-light`, `black`, `white`) und drei Formen: `mark-*` (Zeichen), `lockup-vertical-*`, `lockup-horizontal-*`. Ab 32 px und kleiner wird die vereinfachte Version `icon-*` verwendet (Favicon, App-Icon). Die Dateien werden mit `python3 scripts/brand/generate.py` erzeugt (braucht `fonttools` und `rsvg-convert`); nicht von Hand bearbeiten.
 
 ## Lokal starten
 

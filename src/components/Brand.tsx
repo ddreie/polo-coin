@@ -4,11 +4,7 @@ import { initials } from '../format';
 export function Logo() {
   return (
     <a href="#/" className="logo" aria-label="Polo Coin home">
-      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
-        <circle cx="16" cy="16" r="15" fill="var(--turf)" />
-        <circle cx="16" cy="16" r="10.5" fill="none" stroke="var(--brass)" strokeWidth="2" />
-        <text x="16" y="20.5" textAnchor="middle" fontWeight="800" fontSize="11.5" fill="var(--chalk)">PC</text>
-      </svg>
+      <img src="/brand/mark-on-light.svg" width="34" height="34" alt="" />
       <span>Polo Coin</span>
     </a>
   );
