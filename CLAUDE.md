@@ -16,9 +16,12 @@ unless they write in another language; the website itself is in English.
 | Keep-alive | `.github/workflows/keepalive.yml` | Pings `api_ping` every 3 days so the free Supabase project never pauses. |
 | Offline mode | `src/api/localApi.ts` | `npm run dev:demo` runs the same rules in the browser without Supabase. Keep it in sync with the SQL rules. |
 
-Business rules: 1 PC = 1 USD; buy (mint) and cash-out (burn) are free; transfers cost 1 % paid by the sender,
-split 50/50 between treasury (`admin`) and partner bank (`bank`). Invariant: USD reserve = PC in circulation.
-Demo accounts: `patron`, `pro`, `breeder`, `bank`, `admin`, password `polo2026` (all fictional).
+Business rules (as in the paper): 1 PC = 1 USD; buying (mint) costs a 1 % fee on top, paid in USD and split 50/50
+between treasury (`admin`) and partner bank (`bank`); transfers, payment requests and cash-out (burn) are free.
+Escrow: buyer locks PC in the contract wallet (role `contract`); the named vet (role `vet`) reports the examination
+and the contract pays the seller or refunds the buyer. Invariant: USD reserve = PC in circulation (incl. escrow).
+Business logic lives in `polo.op_*` (SQL) and the `op*` functions in `localApi.ts`; the seed uses them too.
+Demo accounts: `patron`, `pro`, `breeder`, `vet`, `bank`, `admin`, password `polo2026` (all fictional).
 
 ## How to deliver a change
 

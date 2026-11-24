@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import type { Role } from '../api';
 import { initials } from '../format';
 
-export function Logo() {
+export function Logo({ onDark = false }: { onDark?: boolean }) {
   return (
     <Link to="/" className="logo" aria-label="Polo Coin home">
-      <img src="/brand/mark-on-light.svg" width="34" height="34" alt="" />
+      <img src={onDark ? '/brand/mark-on-dark.svg' : '/brand/mark-on-light.svg'} width="34" height="34" alt="" />
       <span>Polo Coin</span>
     </Link>
   );

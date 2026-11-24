@@ -1,4 +1,4 @@
-/** Pages of the public website: one source for routes, navigation and footer. */
+/** Pages of the public website: one source for navigation and footer (routes are in App.tsx). */
 export interface SitePage {
   path: string;
   label: string;          // navigation label

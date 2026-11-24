@@ -4,7 +4,9 @@ import { useSearchParams } from 'react-router-dom';
 import { money, shortHash, timeAgo } from '../format';
 import { blockPayload, verifyChain, type BlockCheck } from '../verify';
 
-const kindLabel: Record<Tx['kind'], string> = { genesis: 'Genesis', mint: 'Mint', transfer: 'Transfer', redeem: 'Burn' };
+const kindLabel: Record<Tx['kind'], string> = {
+  genesis: 'Genesis', mint: 'Mint', transfer: 'Transfer', redeem: 'Burn', lock: 'Escrow lock', release: 'Escrow release', refund: 'Escrow refund',
+};
 
 interface Result { checks: Map<number, BlockCheck>; ok: boolean; ms: number; count: number; tampered: number | null }
 

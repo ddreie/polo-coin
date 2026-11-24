@@ -14,11 +14,21 @@
 --   * Every movement is appended to a hash-chained ledger
 --     (tx_hash = sha256(prev_hash || payload)), mimicking a blockchain.
 --
--- Business rules (from the business case)
+-- Business rules (from the seminar paper)
 --   * 1 PC = 1 USD, 100 % backed by the USD reserve.
---   * Buying PC (mint) and redeeming PC at the partner bank (burn) are free.
---   * Transfers cost 1 %, paid by the sender, split 50/50 between the
---     Polo Coin treasury and the partner bank.
+--   * Buying PC (mint) costs a one-time fee of 1 % on top, paid in USD and
+--     split 50/50 between the Polo Coin treasury and the partner bank.
+--     The fee covers currency conversion and the later redemption.
+--   * Transfers between wallets and redeeming PC at the partner bank (burn)
+--     are free.
+--   * Escrow (smart contract): a buyer locks PC for a horse; the named vet
+--     confirms the pre-purchase examination; the contract then releases the
+--     PC to the seller automatically, or refunds the buyer if the horse fails.
+--     Locked PC sit in the wallet of the escrow contract and stay in supply.
+--   * Payment requests: a professional asks a patron for a fee; the patron
+--     pays it with one click (a normal transfer).
+--   * Reserve: at least 30 % held as USD deposits (MiCA Art. 54), the rest in
+--     US Treasury bills (up to 93 days); assumed yield 4.2 % p.a.
 --   * KYC: new users sign up with status 'pending'. They can log in but
 --     cannot buy, send, receive or cash out until the treasury (any
 --     applicant) or the partner bank (applicants from Argentina) verifies
@@ -39,7 +49,7 @@ create table polo.accounts (
   username      text unique not null,
   password_hash text not null,
   display_name  text not null,
-  role          text not null check (role in ('patron','pro','breeder','bank','admin')),
+  role          text not null check (role in ('patron','pro','breeder','vet','bank','admin','contract')),
   org           text not null,
   country       text not null,
   wallet        text unique not null,
@@ -66,7 +76,7 @@ create table polo.ledger (
   block      bigserial primary key,
   tx_hash    text not null unique,
   prev_hash  text not null,
-  kind       text not null check (kind in ('genesis','mint','transfer','redeem')),
+  kind       text not null check (kind in ('genesis','mint','transfer','redeem','lock','release','refund')),
   from_id    int references polo.accounts(id),
   to_id      int references polo.accounts(id),
   amount     numeric(14,2) not null default 0,
@@ -79,9 +89,37 @@ create table polo.ledger (
 
 create table polo.config (
   id            boolean primary key default true check (id),
-  fee_rate      numeric not null default 0.01,   -- 1 % per transfer
-  bank_share    numeric not null default 0.5,    -- share of fee to partner bank
-  reserve_yield numeric not null default 0.04    -- assumed yield on USD reserve (T-bills)
+  fee_rate      numeric not null default 0.01,   -- 1 % on every purchase of PC
+  bank_share    numeric not null default 0.5,    -- share of the fee for the partner bank
+  reserve_yield numeric not null default 0.042,  -- yield on 3-month US Treasury bills
+  cash_share    numeric not null default 0.30    -- part of the reserve held as USD deposits (MiCA Art. 54)
+);
+
+create table polo.escrows (
+  id           serial primary key,
+  buyer_id     int not null references polo.accounts(id),
+  seller_id    int not null references polo.accounts(id),
+  vet_id       int not null references polo.accounts(id),
+  amount       numeric(14,2) not null check (amount > 0),
+  item         text not null,                       -- e.g. the horse being bought
+  status       text not null default 'locked' check (status in ('locked','released','refunded')),
+  vet_passed   boolean,
+  created_at   timestamptz not null default now(),
+  settled_at   timestamptz,
+  lock_block   bigint references polo.ledger(block),
+  settle_block bigint references polo.ledger(block)
+);
+
+create table polo.requests (
+  id           serial primary key,
+  requester_id int not null references polo.accounts(id),
+  payer_id     int not null references polo.accounts(id),
+  amount       numeric(14,2) not null check (amount > 0),
+  memo         text,
+  status       text not null default 'open' check (status in ('open','paid','declined')),
+  created_at   timestamptz not null default now(),
+  settled_at   timestamptz,
+  block        bigint references polo.ledger(block)
 );
 
 -- Row Level Security as a second safety net. The schema is not exposed to the
@@ -91,6 +129,8 @@ alter table polo.sessions enable row level security;
 alter table polo.reserve  enable row level security;
 alter table polo.ledger   enable row level security;
 alter table polo.config   enable row level security;
+alter table polo.escrows  enable row level security;
+alter table polo.requests enable row level security;
 
 -- ---------------------------------------------------------------------
 -- Internal helpers (not callable from the website)
@@ -187,25 +227,194 @@ language sql stable set search_path = '' as $$
     'amount', l.amount, 'fee', l.fee, 'memo', l.memo, 'created_at', l.created_at)
 $$;
 
--- Demo seed: fictional people and organisations.
+create function polo.escrow_json(e polo.escrows) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'id', e.id, 'amount', e.amount, 'item', e.item, 'status', e.status, 'vet_passed', e.vet_passed,
+    'buyer_id', e.buyer_id, 'seller_id', e.seller_id, 'vet_id', e.vet_id,
+    'buyer_name',  (select display_name from polo.accounts where id = e.buyer_id),
+    'seller_name', (select display_name from polo.accounts where id = e.seller_id),
+    'vet_name',    (select display_name from polo.accounts where id = e.vet_id),
+    'created_at', e.created_at, 'settled_at', e.settled_at,
+    'lock_hash',   (select tx_hash from polo.ledger where block = e.lock_block),
+    'settle_hash', (select tx_hash from polo.ledger where block = e.settle_block),
+    'contract_wallet', (select wallet from polo.accounts where role = 'contract' order by id limit 1))
+$$;
+
+create function polo.request_json(r polo.requests) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'id', r.id, 'amount', r.amount, 'memo', r.memo, 'status', r.status,
+    'requester_id', r.requester_id, 'payer_id', r.payer_id,
+    'requester_name', (select display_name from polo.accounts where id = r.requester_id),
+    'payer_name',     (select display_name from polo.accounts where id = r.payer_id),
+    'created_at', r.created_at, 'settled_at', r.settled_at,
+    'tx_hash', (select tx_hash from polo.ledger where block = r.block))
+$$;
+
+create function polo.role_of(p_id int) returns text
+language sql stable set search_path = '' as $$
+  select role from polo.accounts where id = p_id
+$$;
+
+create function polo.contract_id() returns int
+language sql stable set search_path = '' as $$
+  select id from polo.accounts where role = 'contract' order by id limit 1
+$$;
+
+-- ---------------------------------------------------------------------
+-- Business operations. Used by the api_* functions and by the demo seed,
+-- so the starting data follows exactly the same rules.
+-- ---------------------------------------------------------------------
+
+-- Mint: USD from the buyer's bank account into the reserve, the same amount of PC is issued.
+-- The buyer pays a one-time fee of fee_rate on top (in USD), shared between treasury and partner bank.
+create function polo.op_buy(p_id int, p_amount numeric) returns polo.ledger
+language plpgsql set search_path = '' as $$
+declare v_amt numeric := polo.check_amount(p_amount); c polo.config; v_fee numeric; v_bank_fee numeric;
+        v_bank int; v_admin int; a polo.accounts;
+begin
+  select * into c from polo.config;
+  v_fee := round(v_amt * c.fee_rate, 2);
+  v_bank_fee := round(v_fee * c.bank_share, 2);
+  select id into v_bank  from polo.accounts where role = 'bank'  order by id limit 1;
+  select id into v_admin from polo.accounts where role = 'admin' order by id limit 1;
+  perform 1 from polo.accounts where id in (p_id, v_bank, v_admin) order by id for update;
+  select * into a from polo.accounts where id = p_id;
+  if a.usd < v_amt + v_fee then
+    raise exception 'Insufficient USD balance: % needed incl. 1%% fee, % available.', v_amt + v_fee, a.usd;
+  end if;
+  update polo.accounts set usd = usd - (v_amt + v_fee), pc = pc + v_amt where id = p_id;
+  update polo.accounts set usd = usd + v_bank_fee where id = v_bank;
+  update polo.accounts set usd = usd + (v_fee - v_bank_fee) where id = v_admin;
+  update polo.reserve set usd = usd + v_amt where id;
+  return polo.append('mint', null, p_id, v_amt, v_fee, 'USD deposited into reserve, PC minted');
+end $$;
+
+-- Transfer between wallets: free and final.
+create function polo.op_transfer(p_from int, p_to int, p_amount numeric, p_memo text) returns polo.ledger
+language plpgsql set search_path = '' as $$
+declare v_amt numeric := polo.check_amount(p_amount); a polo.accounts;
+begin
+  if p_to = p_from then raise exception 'You cannot send PC to yourself.'; end if;
+  if not exists (select 1 from polo.accounts where id = p_to and role <> 'contract') then
+    raise exception 'Recipient not found.';
+  end if;
+  if not exists (select 1 from polo.accounts where id = p_to and kyc = 'verified') then
+    raise exception 'The recipient has not passed KYC yet and cannot receive PC.';
+  end if;
+  perform 1 from polo.accounts where id in (p_from, p_to) order by id for update;
+  select * into a from polo.accounts where id = p_from;
+  if a.pc < v_amt then
+    raise exception 'Insufficient PC balance (available: %).', a.pc;
+  end if;
+  update polo.accounts set pc = pc - v_amt where id = p_from;
+  update polo.accounts set pc = pc + v_amt where id = p_to;
+  return polo.append('transfer', p_from, p_to, v_amt, 0, nullif(trim(left(p_memo, 120)), ''));
+end $$;
+
+-- Burn: PC destroyed, USD paid from the reserve to the holder's bank account by the partner bank. Free.
+create function polo.op_redeem(p_id int, p_amount numeric) returns polo.ledger
+language plpgsql set search_path = '' as $$
+declare v_amt numeric := polo.check_amount(p_amount); v_bank int; a polo.accounts;
+begin
+  select id into v_bank from polo.accounts where role = 'bank' order by id limit 1;
+  select * into a from polo.accounts where id = p_id for update;
+  if a.pc < v_amt then
+    raise exception 'Insufficient PC balance (available: %).', a.pc;
+  end if;
+  update polo.accounts set pc = pc - v_amt, usd = usd + v_amt where id = p_id;
+  update polo.reserve set usd = usd - v_amt where id;
+  return polo.append('redeem', p_id, v_bank, v_amt, 0, 'PC burned, USD paid out by partner bank');
+end $$;
+
+-- Escrow: lock the buyer's PC in the contract wallet.
+create function polo.op_escrow_lock(p_buyer int, p_seller int, p_vet int, p_amount numeric, p_item text) returns polo.escrows
+language plpgsql set search_path = '' as $$
+declare v_amt numeric := polo.check_amount(p_amount); v_item text := trim(left(coalesce(p_item, ''), 80));
+        v_contract int := polo.contract_id(); a polo.accounts; e polo.escrows; t polo.ledger;
+begin
+  if length(v_item) < 2 then raise exception 'Describe what you are buying, e.g. the horse''s name.'; end if;
+  if p_seller = p_buyer then raise exception 'You cannot buy from yourself.'; end if;
+  if not exists (select 1 from polo.accounts where id = p_seller and kyc = 'verified' and role in ('patron','pro','breeder')) then
+    raise exception 'The seller must be a verified patron, player or breeder.';
+  end if;
+  if not exists (select 1 from polo.accounts where id = p_vet and kyc = 'verified' and role = 'vet') then
+    raise exception 'Choose a verified veterinarian for the pre-purchase examination.';
+  end if;
+  perform 1 from polo.accounts where id in (p_buyer, v_contract) order by id for update;
+  select * into a from polo.accounts where id = p_buyer;
+  if a.pc < v_amt then
+    raise exception 'Insufficient PC balance (available: %).', a.pc;
+  end if;
+  insert into polo.escrows (buyer_id, seller_id, vet_id, amount, item)
+  values (p_buyer, p_seller, p_vet, v_amt, v_item) returning * into e;
+  update polo.accounts set pc = pc - v_amt where id = p_buyer;
+  update polo.accounts set pc = pc + v_amt where id = v_contract;
+  t := polo.append('lock', p_buyer, v_contract, v_amt, 0, 'Escrow #' || e.id || ': ' || v_item);
+  update polo.escrows set lock_block = t.block where id = e.id returning * into e;
+  return e;
+end $$;
+
+-- Escrow: the contract pays out to the seller (vet passed) or back to the buyer (vet failed or buyer cancelled).
+create function polo.op_escrow_settle(p_escrow int, p_release boolean, p_vet_passed boolean) returns polo.escrows
+language plpgsql set search_path = '' as $$
+declare e polo.escrows; v_contract int := polo.contract_id(); v_to int; t polo.ledger;
+begin
+  select * into e from polo.escrows where id = p_escrow for update;
+  if e.id is null then raise exception 'Escrow not found.'; end if;
+  if e.status <> 'locked' then raise exception 'Escrow #% is already %.', e.id, e.status; end if;
+  v_to := case when p_release then e.seller_id else e.buyer_id end;
+  perform 1 from polo.accounts where id in (v_to, v_contract) order by id for update;
+  update polo.accounts set pc = pc - e.amount where id = v_contract;
+  update polo.accounts set pc = pc + e.amount where id = v_to;
+  t := polo.append(case when p_release then 'release' else 'refund' end, v_contract, v_to, e.amount, 0,
+                   'Escrow #' || e.id || case when p_release then ': vet check passed, paid to seller'
+                                          when p_vet_passed is false then ': vet check failed, refunded'
+                                          else ': cancelled by buyer, refunded' end);
+  update polo.escrows set status = case when p_release then 'released' else 'refunded' end,
+         vet_passed = p_vet_passed, settled_at = now(), settle_block = t.block
+   where id = e.id returning * into e;
+  return e;
+end $$;
+
+-- Demo seed: fictional people and organisations, plus a short history so every page has data.
 create function polo.seed() returns void
 language plpgsql set search_path = '' as $$
 declare v_pw text := extensions.crypt('polo2026', extensions.gen_salt('bf'));
+        v_patron int; v_pro int; v_breeder int; v_vet int; v_t polo.ledger; v_e polo.escrows;
 begin
-  truncate polo.sessions, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
+  truncate polo.sessions, polo.requests, polo.escrows, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
   insert into polo.config default values;
   insert into polo.reserve (usd) values (0);
   insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc) values
-    ('patron',  v_pw, 'James Whitfield',  'patron',  'Team Blue Oak',          'United Kingdom', polo.wallet_of('patron'),  250000, 0, 'verified'),
-    ('pro',     v_pw, 'Facundo Ríos',     'pro',     '7-goal professional',    'Argentina',      polo.wallet_of('pro'),          0, 0, 'verified'),
-    ('breeder', v_pw, 'Estancia La Aurora','breeder','Polo pony breeder',      'Argentina',      polo.wallet_of('breeder'),      0, 0, 'verified'),
-    ('bank',    v_pw, 'Banco Pampa Sur',  'bank',    'Partner bank (fictional)','Argentina',     polo.wallet_of('bank'),         0, 0, 'verified'),
-    ('admin',   v_pw, 'Polo Coin Treasury','admin',  'Issuer & reserve manager','Switzerland',   polo.wallet_of('admin'),        0, 0, 'verified');
+    ('patron',  v_pw, 'James Whitfield',   'patron',  'Team Blue Oak',           'United Kingdom', polo.wallet_of('patron'),  250000, 0, 'verified'),
+    ('pro',     v_pw, 'Facundo Ríos',      'pro',     '7-goal professional',     'Argentina',      polo.wallet_of('pro'),          0, 0, 'verified'),
+    ('breeder', v_pw, 'Estancia La Aurora','breeder', 'Polo pony breeder',       'Argentina',      polo.wallet_of('breeder'),      0, 0, 'verified'),
+    ('bank',    v_pw, 'Banco Pampa Sur',   'bank',    'Partner bank (fictional)','Argentina',      polo.wallet_of('bank'),         0, 0, 'verified'),
+    ('admin',   v_pw, 'Polo Coin Treasury','admin',   'Issuer & reserve manager','Switzerland',    polo.wallet_of('admin'),        0, 0, 'verified'),
+    ('vet',     v_pw, 'Dr. Lucía Ferrer',  'vet',     'Equine vet, Pilar (fictional)', 'Argentina', polo.wallet_of('vet'),         0, 0, 'verified'),
+    -- The escrow smart contract holds locked PC. It has a wallet but nobody can log in to it.
+    ('escrow', extensions.crypt(gen_random_uuid()::text, extensions.gen_salt('bf')), 'Polo Coin Escrow Contract', 'contract',
+               'Smart contract', 'Switzerland', polo.wallet_of('escrow-contract'), 0, 0, 'verified');
   -- Two open sign-up applications, so the KYC review can be shown right away.
   insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc, created_at) values
-    ('charlotte', v_pw, 'Charlotte Hayes',    'patron', 'Team Hollow Creek',     'United States', polo.wallet_of('charlotte'), 100000, 0, 'pending', now() - interval '2 hours'),
-    ('valentina', v_pw, 'Valentina Arrieta',  'pro',    '4-goal professional',   'Argentina',     polo.wallet_of('valentina'),      0, 0, 'pending', now() - interval '25 minutes');
+    ('charlotte', v_pw, 'Charlotte Hayes',   'patron', 'Team Hollow Creek',   'United States', polo.wallet_of('charlotte'), 100000, 0, 'pending', now() - interval '2 hours'),
+    ('valentina', v_pw, 'Valentina Arrieta', 'pro',    '4-goal professional', 'Argentina',     polo.wallet_of('valentina'),      0, 0, 'pending', now() - interval '25 minutes');
   perform polo.append('genesis', null, null, 0, 0, 'Polo Coin genesis block');
+
+  -- Starting history: the patron has used Polo Coin before the demo begins.
+  select id into v_patron  from polo.accounts where username = 'patron';
+  select id into v_pro     from polo.accounts where username = 'pro';
+  select id into v_breeder from polo.accounts where username = 'breeder';
+  select id into v_vet     from polo.accounts where username = 'vet';
+  perform polo.op_buy(v_patron, 60000);
+  perform polo.op_transfer(v_patron, v_pro, 12000, 'Tournament fee, Snow Polo St. Moritz');
+  perform polo.op_redeem(v_pro, 4000);
+  v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 18000, 'Mare "La Bonita", 7 years');
+  -- One open payment request: the player asks for the next tournament fee.
+  insert into polo.requests (requester_id, payer_id, amount, memo)
+  values (v_pro, v_patron, 9500, 'Tournament fee, Polo Gold Cup Gstaad');
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -215,7 +424,7 @@ create or replace function public.api_login(p_username text, p_password text) re
 language plpgsql security definer set search_path = '' as $$
 declare a polo.accounts; v_token uuid;
 begin
-  select * into a from polo.accounts where username = lower(trim(p_username));
+  select * into a from polo.accounts where username = lower(trim(p_username)) and role <> 'contract';
   if a.id is null or a.password_hash <> extensions.crypt(p_password, a.password_hash) then
     raise exception 'Wrong username or password.';
   end if;
@@ -237,82 +446,126 @@ begin
   return polo.account_json(a);
 end $$;
 
--- Directory of counterparties (no balances).
+-- Directory of counterparties (no balances). The escrow contract is not a counterparty.
 create or replace function public.api_directory(p_token uuid) returns json
 language plpgsql security definer set search_path = '' as $$
 begin
   perform polo.auth(p_token);
   return (select coalesce(json_agg(json_build_object('id', id, 'display_name', display_name,
             'role', role, 'org', org, 'country', country, 'wallet', wallet) order by id), '[]')
-          from polo.accounts where kyc = 'verified');
+          from polo.accounts where kyc = 'verified' and role <> 'contract');
 end $$;
 
--- Patron buys PC with USD from his bank account (mint, 1:1, free).
 create or replace function public.api_buy(p_token uuid, p_amount numeric) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
-        a polo.accounts; t polo.ledger;
 begin
-  select * into a from polo.accounts where id = v_id for update;
-  if a.usd < v_amt then
-    raise exception 'Insufficient USD balance (available: %).', a.usd;
-  end if;
-  update polo.accounts set usd = usd - v_amt, pc = pc + v_amt where id = v_id;
-  update polo.reserve set usd = usd + v_amt where id;
-  t := polo.append('mint', null, v_id, v_amt, 0, 'USD deposited into reserve, PC minted');
-  return polo.tx_json(t);
+  return polo.tx_json(polo.op_buy(polo.auth_verified(p_token), p_amount));
 end $$;
 
--- Send PC to another wallet. Sender pays amount + 1 % fee.
 create or replace function public.api_transfer(p_token uuid, p_to int, p_amount numeric, p_memo text) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
-        c polo.config; v_fee numeric; v_bank_fee numeric; v_bank int; v_admin int;
-        a polo.accounts; t polo.ledger;
 begin
-  if p_to = v_id then raise exception 'You cannot send PC to yourself.'; end if;
-  if not exists (select 1 from polo.accounts where id = p_to) then
-    raise exception 'Recipient not found.';
-  end if;
-  if not exists (select 1 from polo.accounts where id = p_to and kyc = 'verified') then
-    raise exception 'The recipient has not passed KYC yet and cannot receive PC.';
-  end if;
-  select * into c from polo.config;
-  v_fee := round(v_amt * c.fee_rate, 2);
-  v_bank_fee := round(v_fee * c.bank_share, 2);
-  select id into v_bank  from polo.accounts where role = 'bank'  order by id limit 1;
-  select id into v_admin from polo.accounts where role = 'admin' order by id limit 1;
-
-  -- lock rows in id order to avoid deadlocks
-  perform 1 from polo.accounts where id in (v_id, p_to, v_bank, v_admin) order by id for update;
-  select * into a from polo.accounts where id = v_id;
-  if a.pc < v_amt + v_fee then
-    raise exception 'Insufficient PC balance: % needed incl. 1%% fee, % available.', v_amt + v_fee, a.pc;
-  end if;
-
-  update polo.accounts set pc = pc - (v_amt + v_fee) where id = v_id;
-  update polo.accounts set pc = pc + v_amt where id = p_to;
-  update polo.accounts set pc = pc + v_bank_fee where id = v_bank;
-  update polo.accounts set pc = pc + (v_fee - v_bank_fee) where id = v_admin;
-  t := polo.append('transfer', v_id, p_to, v_amt, v_fee, nullif(trim(left(p_memo, 120)), ''));
-  return polo.tx_json(t);
+  return polo.tx_json(polo.op_transfer(polo.auth_verified(p_token), p_to, p_amount, p_memo));
 end $$;
 
--- Redeem PC for USD at the partner bank (burn, 1:1, free).
 create or replace function public.api_redeem(p_token uuid, p_amount numeric) returns json
 language plpgsql security definer set search_path = '' as $$
-declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount);
-        v_bank int; a polo.accounts; t polo.ledger;
 begin
-  select id into v_bank from polo.accounts where role = 'bank' order by id limit 1;
-  select * into a from polo.accounts where id = v_id for update;
-  if a.pc < v_amt then
-    raise exception 'Insufficient PC balance (available: %).', a.pc;
+  return polo.tx_json(polo.op_redeem(polo.auth_verified(p_token), p_amount));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Escrow (smart contract for horse purchases)
+-- ---------------------------------------------------------------------
+create or replace function public.api_escrow_create(p_token uuid, p_seller int, p_vet int, p_amount numeric, p_item text) returns json
+language plpgsql security definer set search_path = '' as $$
+begin
+  return polo.escrow_json(polo.op_escrow_lock(polo.auth_verified(p_token), p_seller, p_vet, p_amount, p_item));
+end $$;
+
+-- The named vet reports the pre-purchase examination; the contract settles immediately.
+create or replace function public.api_escrow_vet(p_token uuid, p_escrow int, p_passed boolean) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); e polo.escrows;
+begin
+  select * into e from polo.escrows where id = p_escrow;
+  if e.id is null then raise exception 'Escrow not found.'; end if;
+  if e.vet_id <> v_id then raise exception 'Only the veterinarian named in escrow #% can report the examination.', e.id; end if;
+  return polo.escrow_json(polo.op_escrow_settle(e.id, p_passed, p_passed));
+end $$;
+
+-- The buyer can cancel while the examination is still open; the PC go back to the buyer.
+create or replace function public.api_escrow_cancel(p_token uuid, p_escrow int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); e polo.escrows;
+begin
+  select * into e from polo.escrows where id = p_escrow;
+  if e.id is null then raise exception 'Escrow not found.'; end if;
+  if e.buyer_id <> v_id then raise exception 'Only the buyer can cancel escrow #%.', e.id; end if;
+  return polo.escrow_json(polo.op_escrow_settle(e.id, false, null));
+end $$;
+
+-- Escrows the caller is part of; treasury and partner bank see all.
+create or replace function public.api_escrows(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_role text := polo.role_of(v_id);
+begin
+  return (select coalesce(json_agg(polo.escrow_json(e) order by (e.status = 'locked') desc, e.id desc), '[]')
+            from polo.escrows e
+           where v_role in ('admin','bank') or v_id in (e.buyer_id, e.seller_id, e.vet_id));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Payment requests
+-- ---------------------------------------------------------------------
+create or replace function public.api_request_create(p_token uuid, p_payer int, p_amount numeric, p_memo text) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); v_amt numeric := polo.check_amount(p_amount); r polo.requests;
+begin
+  if p_payer = v_id then raise exception 'You cannot request money from yourself.'; end if;
+  if not exists (select 1 from polo.accounts where id = p_payer and kyc = 'verified' and role not in ('contract')) then
+    raise exception 'Payer not found or not verified.';
   end if;
-  update polo.accounts set pc = pc - v_amt, usd = usd + v_amt where id = v_id;
-  update polo.reserve set usd = usd - v_amt where id;
-  t := polo.append('redeem', v_id, v_bank, v_amt, 0, 'PC burned, USD paid out by partner bank');
-  return polo.tx_json(t);
+  if (select count(*) from polo.requests where requester_id = v_id and status = 'open') >= 20 then
+    raise exception 'Demo limit: max. 20 open requests.';
+  end if;
+  insert into polo.requests (requester_id, payer_id, amount, memo)
+  values (v_id, p_payer, v_amt, nullif(trim(left(p_memo, 120)), '')) returning * into r;
+  return polo.request_json(r);
+end $$;
+
+create or replace function public.api_request_pay(p_token uuid, p_request int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); r polo.requests; t polo.ledger;
+begin
+  select * into r from polo.requests where id = p_request for update;
+  if r.id is null then raise exception 'Request not found.'; end if;
+  if r.payer_id <> v_id then raise exception 'This request is addressed to someone else.'; end if;
+  if r.status <> 'open' then raise exception 'This request is already %.', r.status; end if;
+  t := polo.op_transfer(v_id, r.requester_id, r.amount, coalesce(r.memo, 'Payment request #' || r.id));
+  update polo.requests set status = 'paid', settled_at = now(), block = t.block where id = r.id returning * into r;
+  return polo.request_json(r);
+end $$;
+
+-- The payer declines, or the requester withdraws the request.
+create or replace function public.api_request_decline(p_token uuid, p_request int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); r polo.requests;
+begin
+  select * into r from polo.requests where id = p_request for update;
+  if r.id is null then raise exception 'Request not found.'; end if;
+  if v_id not in (r.payer_id, r.requester_id) then raise exception 'This request is not yours.'; end if;
+  if r.status <> 'open' then raise exception 'This request is already %.', r.status; end if;
+  update polo.requests set status = 'declined', settled_at = now() where id = r.id returning * into r;
+  return polo.request_json(r);
+end $$;
+
+create or replace function public.api_requests(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token);
+begin
+  return (select coalesce(json_agg(polo.request_json(r) order by (r.status = 'open') desc, r.id desc), '[]')
+            from (select * from polo.requests where v_id in (requester_id, payer_id) order by id desc limit 50) r);
 end $$;
 
 -- Own transactions; bank and admin see the whole ledger.
@@ -347,13 +600,19 @@ language sql security definer set search_path = '' as $$
     'reserve_usd',  (select usd from polo.reserve),
     'supply_pc',    (select coalesce(sum(pc), 0) from polo.accounts),
     'tx_count',     (select count(*) from polo.ledger where kind <> 'genesis'),
-    'volume_pc',    (select coalesce(sum(amount), 0) from polo.ledger where kind = 'transfer'),
+    'volume_pc',    (select coalesce(sum(amount), 0) from polo.ledger where kind in ('transfer','release')),
     'fees_pc',      (select coalesce(sum(fee), 0) from polo.ledger),
+    'fees_usd',     (select coalesce(sum(fee), 0) from polo.ledger where kind = 'mint'),
     'minted_pc',    (select coalesce(sum(amount), 0) from polo.ledger where kind = 'mint'),
     'redeemed_pc',  (select coalesce(sum(amount), 0) from polo.ledger where kind = 'redeem'),
+    'escrow_pc',    (select coalesce(sum(pc), 0) from polo.accounts where role = 'contract'),
+    'escrows_open', (select count(*) from polo.escrows where status = 'locked'),
+    'escrows_done', (select count(*) from polo.escrows where status <> 'locked'),
+    'wallets',      (select count(*) from polo.accounts where kyc = 'verified' and role <> 'contract'),
     'fee_rate',     (select fee_rate from polo.config),
     'bank_share',   (select bank_share from polo.config),
     'reserve_yield',(select reserve_yield from polo.config),
+    'cash_share',   (select cash_share from polo.config),
     'chain_valid',  (select bool_and(prev_hash = coalesce(lag_hash, repeat('0', 64)))
                        from (select prev_hash, lag(tx_hash) over (order by block) lag_hash
                                from polo.ledger) x)
@@ -406,7 +665,7 @@ end $$;
 -- Who may review whom: the treasury reviews everyone, the partner bank reviews applicants from Argentina.
 create function polo.can_review(p_reviewer polo.accounts, p_applicant polo.accounts) returns boolean
 language sql stable set search_path = '' as $$
-  select p_applicant.role not in ('bank','admin')
+  select p_applicant.role not in ('bank','admin','vet','contract')
      and (p_reviewer.role = 'admin' or (p_reviewer.role = 'bank' and p_applicant.country = 'Argentina'))
 $$;
 

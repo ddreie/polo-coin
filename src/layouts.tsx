@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { DemoBanner, Logo } from './components/Brand';
+import { TourBar } from './components/Tour';
 import { useSession } from './session';
 import { NAV_PAGES, SITE_PAGES } from './site';
 import { ButtonLink } from './ui';
@@ -77,19 +78,9 @@ export function SiteLayout() {
       <ScrollManager />
       <DemoBanner />
       <SiteHeader />
+      <TourBar />
       <main id="main"><Outlet /></main>
       <SiteFooter />
-    </div>
-  );
-}
-
-/** Wallet app: the dashboard brings its own header; only the banner is shared. */
-export function AppLayout() {
-  return (
-    <div className="page app">
-      <ScrollManager />
-      <DemoBanner />
-      <Outlet />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Account, Api, Applicant, Party, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Escrow, Party, PayRequest, Stats, Tx } from './types';
 
 /** Calls the api_* Postgres functions defined in supabase/setup.sql. */
 export function createSupabaseApi(url: string, key: string): Api {
@@ -32,14 +32,25 @@ export function createSupabaseApi(url: string, key: string): Api {
     reset: (t) => rpc('api_reset', { p_token: t }),
     kycQueue: (t) => rpc<Applicant[]>('api_kyc_queue', { p_token: t }),
     kycDecide: (t, id, ok) => rpc<Account>('api_kyc_decide', { p_token: t, p_account: id, p_approve: ok }).then(num),
+    escrows: (t) => rpc<Escrow[]>('api_escrows', { p_token: t }).then((r) => r.map(num)),
+    escrowCreate: (t, seller, vet, amount, item) =>
+      rpc<Escrow>('api_escrow_create', { p_token: t, p_seller: seller, p_vet: vet, p_amount: amount, p_item: item }).then(num),
+    escrowVet: (t, id, passed) => rpc<Escrow>('api_escrow_vet', { p_token: t, p_escrow: id, p_passed: passed }).then(num),
+    escrowCancel: (t, id) => rpc<Escrow>('api_escrow_cancel', { p_token: t, p_escrow: id }).then(num),
+    requests: (t) => rpc<PayRequest[]>('api_requests', { p_token: t }).then((r) => r.map(num)),
+    requestCreate: (t, payer, amount, memo) =>
+      rpc<PayRequest>('api_request_create', { p_token: t, p_payer: payer, p_amount: amount, p_memo: memo }).then(num),
+    requestPay: (t, id) => rpc<PayRequest>('api_request_pay', { p_token: t, p_request: id }).then(num),
+    requestDecline: (t, id) => rpc<PayRequest>('api_request_decline', { p_token: t, p_request: id }).then(num),
   };
 }
 
 /** Postgres numerics arrive as numbers or strings; normalise the money fields. */
 function num<T>(o: T): T {
   const r = { ...o } as Record<string, unknown>;
-  for (const k of ['usd', 'pc', 'amount', 'fee', 'reserve_usd', 'supply_pc', 'volume_pc', 'fees_pc',
-    'minted_pc', 'redeemed_pc', 'fee_rate', 'bank_share', 'reserve_yield', 'tx_count']) {
+  for (const k of ['usd', 'pc', 'amount', 'fee', 'reserve_usd', 'supply_pc', 'volume_pc', 'fees_pc', 'fees_usd',
+    'minted_pc', 'redeemed_pc', 'escrow_pc', 'escrows_open', 'escrows_done', 'wallets',
+    'fee_rate', 'bank_share', 'reserve_yield', 'cash_share', 'tx_count']) {
     if (k in r && r[k] !== null) r[k] = Number(r[k]);
   }
   return r as T;

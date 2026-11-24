@@ -19,12 +19,14 @@ export const roleLabel: Record<Role, string> = {
   patron: 'Patron',
   pro: 'Professional player',
   breeder: 'Breeder',
+  vet: 'Veterinarian',
   bank: 'Partner bank',
   admin: 'Treasury',
+  contract: 'Smart contract',
 };
 
 /** Typical cross-border bank wire (from the business case). */
-export const SWIFT = { feeLow: 0.02, feeHigh: 0.05, feeMid: 0.035, daysLow: 3, daysHigh: 7 };
+export const SWIFT = { feeLow: 0.02, feeHigh: 0.05, feeMid: 0.035, daysLow: 1, daysHigh: 3 };
 
 export const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();

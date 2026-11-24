@@ -17,8 +17,8 @@ interface Session {
   /** True while a stored token is being checked on page load. */
   checking: boolean;
   setAccount: (a: Account) => void;
-  /** Stores the session and opens the wallet. */
-  login: (token: string, account: Account) => void;
+  /** Stores the session and opens the wallet (or `next`). */
+  login: (token: string, account: Account, next?: string) => void;
   logout: (next?: string) => Promise<void>;
 }
 
@@ -38,8 +38,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = useCallback((t: string, a: Account) => {
-    writeToken(t); setToken(t); setAccount(a); navigate('/app');
+  const login = useCallback((t: string, a: Account, next = '/app') => {
+    writeToken(t); setToken(t); setAccount(a); setChecking(false); navigate(next);
   }, [navigate]);
 
   const logout = useCallback(async (next = '/login') => {
