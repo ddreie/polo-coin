@@ -1,4 +1,4 @@
-import { ButtonLink, PageHero, Section, Stat } from '../../ui';
+import { ButtonLink, PageHero, Section, Stat, Cite, Notes } from '../../ui';
 
 const GROUPS = [
   {
@@ -29,7 +29,7 @@ const GROUPS = [
 
 export default function Solutions() {
   return (
-    <>
+    <Notes ids={['paper', 'rochet2003']}>
       <PageHero eyebrow="Solutions" title="Built for everyone who keeps polo running"
         lede="Polo is a global sport with a one-way money flow: patrons in Europe and the US pay professionals, breeders and grooms from Argentina. Polo Coin is designed for exactly that corridor.">
         <ButtonLink to="/login" variant="accent">Try a role in the demo</ButtonLink>
@@ -51,14 +51,14 @@ export default function Solutions() {
         </Section>
       ))}
 
-      <Section tone="dark" title="And the institutions behind them">
+      <Section tone="dark" title="And the institutions behind them" intro={<>A two-sided platform: payers only gain if recipients accept the coin. That is why only payers are charged.<Cite id="rochet2003" /></>}>
         <div className="grid-3">
           <div><h3>Partner banks</h3><p>Convert currencies, hold the reserve and pay out dollars in Argentina, for a share of the 1% fee.</p></div>
           <div><h3>Clubs and associations</h3><p>Give access to the community and lend their trust. Their members get cheaper, faster payments.</p></div>
           <div><h3>Tournament organisers</h3><p>Bring all groups together for weeks. The ideal place for a pilot, and later for entry fees and prize money.</p></div>
         </div>
-        <p className="muted-on-dark small">Market figures are estimates from our seminar paper (University of Zurich, 2026), based on association and export statistics.</p>
+        <p className="muted-on-dark small">Market figures are estimates from our seminar paper, based on association and export statistics.<Cite id="paper" /></p>
       </Section>
-    </>
+    </Notes>
   );
 }

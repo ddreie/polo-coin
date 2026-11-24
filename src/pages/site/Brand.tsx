@@ -19,7 +19,7 @@ export default function Brand() {
   return (
     <>
       <PageHero eyebrow="Brand" title="The Polo Coin brand"
-        lede="A coin, two crossed mallets and a ball: polo and money in one mark. Quiet colours, one loud accent, and Helvetica." />
+        lede="A coin, two crossed mallets and a ball: polo and money in one mark. Quiet colours, one loud accent, and Arial." />
 
       <Section title="Logo" intro="The ring is the coin, the crossed mallets are polo, the orange ball is the payment in play. Below 32 px use the simplified icon. Logo files are in /brand.">
         <div className="logo-grid">
@@ -46,7 +46,7 @@ export default function Brand() {
         <p className="muted small">Contrast: cream on green 7.9 : 1 (default for text on dark). Orange on green 3.9 : 1, for large text and buttons only. Orange on cream 2 : 1, never for text.</p>
       </Section>
 
-      <Section title="Typography" intro="Helvetica throughout, Arial where Helvetica is not installed. Figures are tabular so amounts line up.">
+      <Section title="Typography" intro="Arial throughout, set large and tight for headlines. Figures are tabular so amounts line up.">
         <div className="type-scale">
           <p style={{ fontSize: '3.5rem', fontWeight: 700, letterSpacing: '-0.025em' }}>Display 56</p>
           <p style={{ fontSize: '2.5rem', fontWeight: 700 }}>Headline 40</p>

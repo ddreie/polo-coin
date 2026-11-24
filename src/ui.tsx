@@ -1,7 +1,8 @@
 /** Polo Coin design system: small, composable building blocks for all pages.
  *  Styles live in styles.css under "Design system". */
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { SOURCES } from './sources';
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'on-dark';
 const btnClass = (v: Variant, small?: boolean) =>
@@ -16,7 +17,7 @@ export function ButtonLink({ to, children, variant = 'primary', small }:
     : <Link className={btnClass(variant, small)} to={to}>{children}</Link>;
 }
 
-/** Small uppercase label above a headline. */
+/** Small label above a headline (sentence case, like a section reference in a report). */
 export function Eyebrow({ children }: { children: ReactNode }) {
   return <p className="eyebrow">{children}</p>;
 }
@@ -42,8 +43,12 @@ export function Section({ children, tone = 'plain', id, title, intro }:
   return (
     <section className={`band band-${tone}`} id={id} aria-labelledby={id && title ? `${id}-h` : undefined}>
       <div className="wrap">
-        {title && <h2 id={id ? `${id}-h` : undefined}>{title}</h2>}
-        {intro && <p className="band-intro">{intro}</p>}
+        {(title || intro) && (
+          <header className={`band-head${intro ? '' : ' band-head-solo'}`}>
+            {title && <h2 id={id ? `${id}-h` : undefined}>{title}</h2>}
+            {intro && <p className="band-intro">{intro}</p>}
+          </header>
+        )}
         {children}
       </div>
     </section>
@@ -71,4 +76,40 @@ export function Stat({ value, label }: { value: ReactNode; label: ReactNode }) {
       <span className="stat-label">{label}</span>
     </div>
   );
+}
+
+/* ---------- Footnotes, as in the seminar paper ---------- */
+const NotesCtx = createContext<string[]>([]);
+
+/** Wraps a page: citations inside are numbered in the order of `ids`, the list is printed at the end. */
+export function Notes({ ids, children }: { ids: string[]; children: ReactNode }) {
+  return (
+    <NotesCtx.Provider value={ids}>
+      {children}
+      <section className="notes" aria-labelledby="notes-h">
+        <div className="wrap">
+          <h2 id="notes-h">Sources</h2>
+          <ol>
+            {ids.map((id) => {
+              const s = SOURCES[id];
+              return (
+                <li key={id} id={`note-${id}`}>
+                  {s.text}{' '}
+                  {s.url && <a href={s.url} target="_blank" rel="noreferrer">{s.url.replace(/^https?:\/\//, '').split('/')[0]}</a>}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </section>
+    </NotesCtx.Provider>
+  );
+}
+
+/** Superscript footnote marker that jumps to the source list. */
+export function Cite({ id }: { id: string }) {
+  const ids = useContext(NotesCtx);
+  const n = ids.indexOf(id) + 1;
+  if (!n) return null;
+  return <sup className="cite"><a href={`#note-${id}`} aria-label={`Source ${n}`}>{n}</a></sup>;
 }

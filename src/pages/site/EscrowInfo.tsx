@@ -1,13 +1,13 @@
 import { useGoToStep, startTour } from '../../components/Tour';
 import { TOUR } from '../../demo';
-import { Card, PageHero, Section } from '../../ui';
+import { Card, PageHero, Section, Cite, Notes } from '../../ui';
 
 export default function EscrowInfo() {
   const goToStep = useGoToStep();
   const tryIt = () => { startTour(); goToStep(TOUR.findIndex((s) => s.path === '/app/escrow')); };
 
   return (
-    <>
+    <Notes ids={['akerlof1970', 'ganley2019']}>
       <PageHero eyebrow="Escrow" title="Buy the horse, not the risk"
         lede="The purchase price is locked in a smart contract and released to the breeder only after the vet has confirmed the pre-purchase examination.">
         <button className="btn btn-accent" onClick={tryIt}>Try escrow in the demo</button>
@@ -16,10 +16,10 @@ export default function EscrowInfo() {
       <Section title="The problem: who goes first?">
         <div className="split">
           <p>
-            A good polo pony from Argentina costs USD 10,000 to well over 100,000. With a bank wire taking days, one side
+            A good polo pony from Argentina costs USD 10,000 to well over 100,000. Argentina exported 2,014 of them in 2018, three quarters of all its horse exports.<Cite id="ganley2019" /> With a bank wire taking days, one side
             always carries the risk: either the patron pays before the horse has passed the vet, or the breeder ships before
             the money has arrived. When buyers and sellers know different things about the goods and cannot protect
-            themselves, trades that would benefit both sides do not happen (Akerlof, 1970).
+            themselves, trades that would benefit both sides do not happen.<Cite id="akerlof1970" />
           </p>
           <p>
             Polo Coin removes the advance: the money is committed, but nobody can touch it until a neutral expert has
@@ -52,6 +52,6 @@ export default function EscrowInfo() {
         </p>
         <button className="btn btn-on-dark" onClick={() => { startTour(); goToStep(TOUR.findIndex((s) => s.as === 'organizer')); }}>See the win bonus in the demo</button>
       </Section>
-    </>
+    </Notes>
   );
 }

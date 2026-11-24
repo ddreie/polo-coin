@@ -82,7 +82,9 @@ scripts/brand/          Generator für die Logo-Dateien
 | Sekundär (ca. 30%) | Old Cream | `#EBCFAD` | Sektionen, Karten, Text auf Grün |
 | Akzent (max. 10%) | Burnt Orange | `#F26A1E` | Buttons, Highlights, Ball im Logo – nie als Text auf Creme |
 
-Schrift: Helvetica-Familie, auf Windows Arial als Fallback. Die Tokens stehen oben in `src/styles.css`.
+Schrift: Arial. Die Tokens stehen oben in `src/styles.css`.
+
+Frontend v2 (Nov. 2026): Forest Green trägt Header, Seitenköpfe und Footer, helle Seiten sind ein Hauch Old Cream. Eckige Formen, feine Linien statt Schattenkarten, Abschnittstitel links mit Einleitung rechts unter einer grünen Haarlinie. Das einzige verspielte Element ist die goldene 3D-Münze auf der Startseite (`src/components/coin3d.ts`, Three.js, wird nur dort geladen). Quellen stehen als Fussnoten: `<Cite id="…" />` im Text, `<Notes ids={[…]}>` um die Seite, Literatur in `src/sources.ts` (APA 7 wie im Paper).
 
 Logo 1A (Münzring, gekreuzte Mallets, oranger Ball) liegt in `public/brand/` in vier Farbvarianten (`on-dark`, `on-light`, `black`, `white`) und drei Formen: `mark-*` (Zeichen), `lockup-vertical-*`, `lockup-horizontal-*`. Ab 32 px und kleiner wird die vereinfachte Version `icon-*` verwendet (Favicon, App-Icon). Die Dateien werden mit `python3 scripts/brand/generate.py` erzeugt (braucht `fonttools` und `rsvg-convert`); nicht von Hand bearbeiten.
 

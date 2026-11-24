@@ -25,7 +25,7 @@ function SiteHeader() {
   return (
     <header className="site-header">
       <div className="wrap topbar">
-        <Logo />
+        <Logo onDark />
         <button className="nav-toggle" aria-expanded={open} aria-controls="site-nav" onClick={() => setOpen(!open)}>
           <span className="sr-only">Menu</span><span aria-hidden="true">{open ? '✕' : '☰'}</span>
         </button>

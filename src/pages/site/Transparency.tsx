@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import StressTest from '../../components/StressTest';
 import { money0 } from '../../format';
-import { ButtonLink, Card, PageHero, Section, Stat } from '../../ui';
+import { ButtonLink, Card, PageHero, Section, Stat, Cite, Notes } from '../../ui';
 import { useStats } from '../../useStats';
 
 export default function Transparency() {
@@ -12,7 +12,7 @@ export default function Transparency() {
   const interest = s ? bills * s.reserve_yield : 0;
 
   return (
-    <>
+    <Notes ids={['catalini2022', 'dechert2025']}>
       <PageHero eyebrow="Transparency" title="Every coin, backed and visible"
         lede="Live proof that the US dollar reserve equals the Polo Coin in circulation. These figures come straight from the prototype’s database and update every few seconds.">
         <ButtonLink to="/explorer" variant="accent">Verify the ledger</ButtonLink>
@@ -38,7 +38,7 @@ export default function Transparency() {
         </div>
       </Section>
 
-      <Section tone="cream" title="How the reserve is held" intro="Safety first: only cash and the shortest US government debt.">
+      <Section tone="cream" title="How the reserve is held" intro={<>Safety first: only cash and the shortest US government debt. The quality of the reserve decides whether a stablecoin survives a run.<Cite id="catalini2022" /></>}>
         <div className="reserve-mix">
           <div className="mix-bar" aria-hidden="true">
             <span className="mix-cash" style={{ width: `${(s?.cash_share ?? 0.3) * 100}%` }}>{Math.round((s?.cash_share ?? 0.3) * 100)}%</span>
@@ -49,7 +49,7 @@ export default function Transparency() {
               <p>At least 30% of the reserve is held as bank deposits, the legal minimum for e-money tokens under MiCA (Art. 54). It covers redemptions immediately.</p>
             </Card>
             <Card title={`US Treasury bills · USD ${money0(bills)}`}>
-              <p>The rest is invested in T-bills with at most 93 days to maturity, the limit of the US GENIUS Act. Their value barely moves with interest rates, so they can be sold within a day without loss.</p>
+              <p>The rest is invested in T-bills with at most 93 days to maturity, the limit of the US GENIUS Act.<Cite id="dechert2025" /> Their value barely moves with interest rates, so they can be sold within a day without loss.</p>
             </Card>
           </div>
         </div>
@@ -69,8 +69,8 @@ export default function Transparency() {
           <li>Every transaction is public as a hash-chained block, with wallets shown as addresses, not names.</li>
           <li>The reserve is audited regularly in production. This prototype simulates the audit.</li>
         </ul>
-        <p><Link to="/security">Security and regulation →</Link></p>
+        <p className="more"><Link to="/security">Security and regulation</Link></p>
       </Section>
-    </>
+    </Notes>
   );
 }

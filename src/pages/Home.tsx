@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { startTour, useGoToStep } from '../components/Tour';
 import { money0, SWIFT } from '../format';
 import { useSession } from '../session';
-import { ButtonLink, Card, Eyebrow, Section, Stat } from '../ui';
+import { ButtonLink, Cite, Notes, Section } from '../ui';
 import { useStats } from '../useStats';
+
+const Coin = lazy(() => import('../components/Coin'));
 
 export default function Home() {
   const signedIn = !!useSession().account;
@@ -13,69 +15,87 @@ export default function Home() {
   const tour = () => { startTour(); goToStep(0); };
 
   return (
-    <>
-      <section className="hero wrap">
-        <div className="hero-copy">
-          <Eyebrow>The payment currency of the polo world</Eyebrow>
+    <Notes ids={['paper', 'fsb2025', 'ganley2019']}>
+      <section className="home-hero">
+        <div className="wrap home-hero-inner">
+          <p className="hero-badge">
+            <img src="/brand/icon-on-dark.svg" width="18" height="18" alt="" />
+            A US dollar stablecoin for the polo economy
+          </p>
           <h1>Pay your polo team in Argentina the same minute.</h1>
-          <p className="lede">
-            Patrons in Europe and the US pay professionals, breeders and grooms in Argentina by bank wire:
-            2–5% in fees and several days of waiting. Polo Coin is a stablecoin backed 1:1 by US dollars.
-            One fee of 1% when you buy it. Every payment after that is free and arrives in seconds.
+          <p className="home-lede">
+            Patrons in Europe and the US pay players, breeders and grooms in Argentina by bank wire, at 2–5% in fees
+            and several days of waiting.<Cite id="paper" /> Polo Coin is backed 1:1 by US dollars. You pay 1% when you buy it.
+            Every payment after that is free and arrives in seconds.
           </p>
           <div className="hero-actions">
             <button className="btn btn-accent" onClick={tour}>Start the guided demo</button>
-            <Link className="btn btn-ghost" to={signedIn ? '/app' : '/how-it-works'}>{signedIn ? 'Open wallet' : 'How it works'}</Link>
+            <Link className="btn btn-on-dark" to={signedIn ? '/app' : '/how-it-works'}>{signedIn ? 'Open wallet' : 'How it works'}</Link>
           </div>
         </div>
-        <Race />
+        <div className="coin-stage">
+          <Suspense fallback={<div className="coin" />}><Coin /></Suspense>
+        </div>
       </section>
 
-      <section className="live-strip" aria-label="Live figures from the prototype">
-        <div className="wrap live-grid">
-          <Stat value={stats ? `USD ${money0(stats.reserve_usd)}` : '…'} label="in the reserve, live" />
-          <Stat value={stats ? (stats.supply_pc ? `${Math.round((stats.reserve_usd / stats.supply_pc) * 100)}%` : '100%') : '…'} label="backing of every coin" />
-          <Stat value={stats ? String(stats.tx_count) : '…'} label="transactions on the ledger" />
-          <Stat value="< 1 s" label="settlement in the demo" />
+      <section className="band band-plain compare-band" aria-labelledby="compare-h">
+        <div className="wrap">
+          <header className="band-head">
+            <h2 id="compare-h">The same payment, two ways</h2>
+            <p className="band-intro">
+              Enter a tournament fee. The bank wire assumes the usual correspondent banking route from a European account.
+              Only about a third of retail cross-border payments arrive within one hour.<Cite id="fsb2025" />
+            </p>
+          </header>
+          <Race />
+        </div>
+      </section>
+
+      <section className="figures-row" aria-label="Live figures from the prototype">
+        <div className="wrap">
+          <dl className="ledger-figures">
+            <div><dt>In the reserve, live</dt><dd>{stats ? <><small>USD</small>{money0(stats.reserve_usd)}</> : '…'}</dd></div>
+            <div><dt>Backing of every coin</dt><dd>{stats ? (stats.supply_pc ? `${Math.round((stats.reserve_usd / stats.supply_pc) * 100)}%` : '100%') : '…'}</dd></div>
+            <div><dt>Transactions on the ledger</dt><dd>{stats ? stats.tx_count : '…'}</dd></div>
+            <div><dt>Settlement in the demo</dt><dd>&lt;1 s</dd></div>
+          </dl>
         </div>
       </section>
 
       <Section title="One coin, four kinds of people" intro="Polo money flows one way: from patrons abroad to the professionals, breeders and grooms who come from Argentina. Polo Coin serves both ends.">
-        <div className="grid-4">
+        <div className="columns columns-4">
           {AUDIENCES.map((a) => (
             <Link key={a.title} className="audience" to={`/solutions#${a.id}`}>
               <span className="audience-role">{a.role}</span>
               <h3>{a.title}</h3>
               <p>{a.text}</p>
-              <span className="audience-more">Learn more →</span>
             </Link>
           ))}
         </div>
       </Section>
 
-      <Section tone="cream" title="How a tournament payment works">
-        <ol className="flow-steps">
-          <li><span>1</span><h3>Buy</h3><p>The patron buys Polo Coin with CHF, EUR, GBP or USD. The dollars go into the reserve, the same amount of PC is issued. Fee: 1%, once.</p></li>
-          <li><span>2</span><h3>Pay</h3><p>PC moves from wallet to wallet in seconds, 24/7, without fees. Every payment is a block in a hash-chained ledger.</p></li>
-          <li><span>3</span><h3>Use or cash out</h3><p>The player keeps PC as dollars, pays a breeder or groom with it, or cashes out at the partner bank, 1:1 and free.</p></li>
+      <Section tone="cream" title="How a tournament payment works" intro="Three steps, from the patron’s bank account to dollars in Argentina.">
+        <ol className="sequence">
+          <li><h3>Buy</h3><p>The patron buys Polo Coin with CHF, EUR, GBP or USD. The dollars go into the reserve, the same amount of PC is issued. Fee: 1%, once.</p></li>
+          <li><h3>Pay</h3><p>PC moves from wallet to wallet in seconds, 24/7, without fees. Every payment is a block in a hash-chained ledger.</p></li>
+          <li><h3>Use or cash out</h3><p>The player keeps PC as dollars, pays a breeder or groom with it, or cashes out at the partner bank, 1:1 and free.</p></li>
         </ol>
-        <p><Link to="/how-it-works">The full flow, step by step →</Link></p>
+        <p className="more"><Link to="/how-it-works">The full flow, step by step</Link></p>
       </Section>
 
       <Section tone="dark">
         <div className="split">
           <div>
-            <Eyebrow>Escrow for horse purchases</Eyebrow>
             <h2>Buy the horse, not the risk.</h2>
             <p className="band-intro">
-              Today either the buyer pays before the horse has passed the vet, or the breeder ships before being paid.
-              With Polo Coin the price waits in a smart contract and is released the moment the vet confirms the
-              pre-purchase examination.
+              Argentina exported 2,014 polo horses in 2018, most of them to the US and the UK.<Cite id="ganley2019" /> Today either the
+              buyer pays before the horse has passed the vet, or the breeder ships before being paid. With Polo Coin the
+              price waits in a smart contract and is released the moment the vet confirms the pre-purchase examination.
             </p>
             <ButtonLink to="/escrow" variant="on-dark">How escrow works</ButtonLink>
           </div>
-          <ol className="mini-contract">
-            <li><strong>Locked</strong><span>Patron’s PC move into the contract</span></li>
+          <ol className="contract-trail">
+            <li><strong>Locked</strong><span>The patron’s PC move into the contract</span></li>
             <li><strong>Vet check</strong><span>The named vet reports the result</span></li>
             <li><strong>Released</strong><span>Paid to the breeder, or refunded</span></li>
           </ol>
@@ -83,10 +103,10 @@ export default function Home() {
       </Section>
 
       <Section title="Built on trust and transparency">
-        <div className="grid-3">
-          <Card title="Fully backed"><p>Every PC is matched by a US dollar: at least 30% as bank deposits, the rest in short-term US Treasury bills. <Link to="/transparency">See the live proof</Link>.</p></Card>
-          <Card title="Identified wallets"><p>No anonymous accounts. Every holder passes an identity check before the first payment. <Link to="/security">Security and regulation</Link>.</p></Card>
-          <Card title="Verifiable ledger"><p>Each transaction carries the fingerprint of the one before. Change one, and the chain breaks. <Link to="/explorer">Verify it yourself</Link>.</p></Card>
+        <div className="columns columns-3">
+          <div><h3>Fully backed</h3><p>Every PC is matched by a US dollar: at least 30% as bank deposits, the rest in short-term US Treasury bills. <Link to="/transparency">See the live proof</Link>.</p></div>
+          <div><h3>Identified wallets</h3><p>No anonymous accounts. Every holder passes an identity check before the first payment. <Link to="/security">Security and regulation</Link>.</p></div>
+          <div><h3>Verifiable ledger</h3><p>Each transaction carries the fingerprint of the one before. Change one, and the chain breaks. <Link to="/explorer">Verify it yourself</Link>.</p></div>
         </div>
       </Section>
 
@@ -102,7 +122,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </>
+    </Notes>
   );
 }
 
@@ -113,7 +133,7 @@ const AUDIENCES = [
   { id: 'grooms', role: 'Receives and sends', title: 'Grooms', text: 'Receive wages and send savings home to the family without fixed bank fees.' },
 ];
 
-/** Hero: the same payment by bank wire and by Polo Coin, side by side. */
+/** The same payment by bank wire and by Polo Coin, set like two lines of a bank statement. */
 function Race() {
   const [amount, setAmount] = useState(20000);
   const [run, setRun] = useState(0);
@@ -122,7 +142,7 @@ function Race() {
   const wireHigh = amount * SWIFT.feeHigh;
 
   return (
-    <figure className="race" aria-label="Cost and speed comparison">
+    <figure className="race">
       <label className="race-amount">
         <span>Tournament fee to send</span>
         <span className="race-input">
@@ -134,27 +154,27 @@ function Race() {
         </span>
       </label>
 
-      <div className="lane lane-wire">
-        <div className="lane-head">
-          <strong>Bank wire (SWIFT)</strong>
-          <span>{SWIFT.daysLow}–{SWIFT.daysHigh} business days</span>
-        </div>
-        <div className="track"><span key={`w${run}`} className="runner runner-slow" /></div>
-        <div className="lane-foot">Fees USD {money0(wireLow)}–{money0(wireHigh)}</div>
-      </div>
-
-      <div className="lane lane-pc">
-        <div className="lane-head">
-          <strong>Polo Coin</strong>
-          <span>Seconds, 24/7</span>
-        </div>
-        <div className="track"><span key={`p${run}`} className="runner runner-fast" /></div>
-        <div className="lane-foot">Fee USD {money0(pcFee)}, once, when buying</div>
-      </div>
+      <table className="race-table">
+        <thead>
+          <tr><th scope="col">Route</th><th scope="col">Arrives</th><th scope="col" className="num">Cost in USD</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Bank wire (SWIFT)</th>
+            <td>{SWIFT.daysLow}–{SWIFT.daysHigh} business days<span className="track"><span key={`w${run}`} className="runner runner-slow" /></span></td>
+            <td className="num">{money0(wireLow)}–{money0(wireHigh)}</td>
+          </tr>
+          <tr className="race-pc">
+            <th scope="row">Polo Coin</th>
+            <td>Seconds, 24/7<span className="track"><span key={`p${run}`} className="runner runner-fast" /></span></td>
+            <td className="num">{money0(pcFee)}<small>once, when buying</small></td>
+          </tr>
+        </tbody>
+      </table>
 
       <figcaption>
-        On this payment the patron keeps up to <strong>USD {money0(Math.max(0, wireHigh - pcFee))}</strong> and
-        the player is paid before the next chukka.
+        On this payment the patron keeps up to <strong>USD {money0(Math.max(0, wireHigh - pcFee))}</strong>, and the player is
+        paid before the next chukka.
       </figcaption>
     </figure>
   );

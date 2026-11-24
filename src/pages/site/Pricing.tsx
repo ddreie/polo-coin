@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import BreakEven from '../../components/BreakEven';
 import { money0 } from '../../format';
-import { ButtonLink, Card, PageHero, Section } from '../../ui';
+import { ButtonLink, Card, PageHero, Section, Cite, Notes } from '../../ui';
 
 /** Figures from the seminar paper (Table 1 and section "Cost advantage of Polo Coin"):
  *  OUR fees of nine European and US banks, measured at USD 2,000 and USD 10,000,
@@ -27,7 +27,7 @@ const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 export default function Pricing() {
   return (
-    <>
+    <Notes ids={['paper', 'wise_b', 'circle2025']}>
       <PageHero eyebrow="Pricing" title="One fee. 1%. Nothing hidden."
         lede="You pay 1% when you buy Polo Coin. Currency conversion, every payment and the cash-out in Argentina are included.">
         <ButtonLink to="/login" variant="accent">Try it in the demo</ButtonLink>
@@ -62,7 +62,7 @@ export default function Pricing() {
             Two revenue streams. First, the 1% purchase fee, part of which goes to the partner banks for conversion
             and payout. Second, interest on the reserve: 70% of it is invested in US Treasury bills with up to 93
             days to maturity. At a yield of about 4.2%, every dollar in the reserve earns roughly 2.9% a year.
-            As required by MiCA, this interest is not passed on to coin holders.
+            As required by MiCA, this interest is not passed on to coin holders. Circle, the issuer of USDC, earns almost all of its revenue this way.<Cite id="circle2025" />
           </p>
           <p className="muted">
             During the pilot at selected tournaments the purchase fee is waived, so patrons can test Polo Coin without
@@ -70,7 +70,7 @@ export default function Pricing() {
           </p>
         </div>
       </Section>
-    </>
+    </Notes>
   );
 }
 
@@ -127,8 +127,9 @@ function Calculator() {
       </p>
       <p className="muted small">
         Bank cost = OUR fee (all charges paid by the sender) + exchange-rate mark-up. {m.note}. Mark-ups exclude wire fees, so real
-        bank costs are likely higher. Converting received dollars into pesos adds about 1.7% with any option. Source: our
-        seminar paper, Table 1 (fee schedules of Bank of America, Barclays, BBVA, Chase, Deutsche Bank, ING, Lloyds, UBS, UniCredit, 2026).
+        bank costs are likely higher. Converting received dollars into pesos adds about 1.7% with any option. Bank fees: fee
+        schedules of Bank of America, Barclays, BBVA, Chase, Deutsche Bank, ING, Lloyds, UBS, UniCredit, 2026.<Cite id="paper" /> Wise limit for
+        Argentina: USD 18,000 per month.<Cite id="wise_b" />
       </p>
     </div>
   );

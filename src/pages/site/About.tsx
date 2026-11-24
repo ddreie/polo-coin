@@ -1,5 +1,5 @@
 import SeasonCalendar from '../../components/SeasonCalendar';
-import { Card, PageHero, Section } from '../../ui';
+import { Card, PageHero, Section, Cite, Notes } from '../../ui';
 
 const TEAM = ['Luisa Blumenthal', 'Andri Bühler', 'Dario Dreier', 'Ivan Massaro', 'Alyssa Victoria Pühringer', 'Janis Raschle'];
 
@@ -12,11 +12,11 @@ const ROADMAP = [
 
 export default function About() {
   return (
-    <>
+    <Notes ids={['collins1996', 'moore2014', 'paper']}>
       <PageHero eyebrow="About" title="A global sport deserves a global payment system"
         lede="Polo Coin started as a seminar project at the University of Zurich: six students, one niche market, and the question of whether a fully backed stablecoin can fix its payments." />
 
-      <Section title="Vision and mission">
+      <Section title="Vision and mission" intro={<>A vision names an enduring purpose and a bold picture of the future, the mission says what we contribute to it.<Cite id="collins1996" /></>}>
         <div className="grid-2">
           <Card tone="dark" title="Vision"><p className="statement">To become the standard payment currency of the international polo world.</p></Card>
           <Card tone="cream" title="Mission"><p className="statement">To let patrons, players and breeders move money across borders within minutes and at a transparent fee, through a stablecoin backed by US dollars and built together with the polo community and its institutions.</p></Card>
@@ -24,7 +24,7 @@ export default function About() {
         <p className="values">Two values guide us: <strong>trust</strong> and <strong>transparency</strong>.</p>
       </Section>
 
-      <Section tone="cream" id="roadmap" title="Roadmap">
+      <Section tone="cream" id="roadmap" title="Roadmap" intro={<>A small, well-connected niche first, then the next markets: the beachhead strategy.<Cite id="moore2014" /></>}>
         <ol className="roadmap">
           {ROADMAP.map((r, i) => (
             <li key={r.title} className={i === 1 ? 'now' : ''}>
@@ -46,9 +46,9 @@ export default function About() {
         </ul>
         <p className="muted">
           Seminar “FinTech &amp; InsurTech – Digitalization of the Financial Services Industry”, Swiss FinTech Innovation Lab,
-          University of Zurich, autumn semester 2026. Lecturer: Prof. Dr. Thomas Puschmann.
+          University of Zurich, autumn semester 2026. Lecturer: Prof. Dr. Thomas Puschmann.<Cite id="paper" />
         </p>
       </Section>
-    </>
+    </Notes>
   );
 }

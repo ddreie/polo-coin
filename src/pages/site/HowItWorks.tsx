@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ButtonLink, Card, PageHero, Section } from '../../ui';
+import { ButtonLink, Card, PageHero, Section, Cite, Notes } from '../../ui';
 
 const FLOW = [
   { who: 'Patron', where: 'Europe / US', what: 'Pays CHF, EUR, GBP or USD from the usual bank account.' },
@@ -11,7 +11,7 @@ const FLOW = [
 
 export default function HowItWorks() {
   return (
-    <>
+    <Notes ids={['swift2024', 'nilsson2022', 'fsb2025']}>
       <PageHero eyebrow="How it works" title="From patron to pampa in seconds"
         lede="Polo Coin replaces the chain of correspondent banks with one shared ledger. You pay one fee when you buy the coin. Everything after that is free.">
         <ButtonLink to="/login" variant="accent">Try it in the demo</ButtonLink>
@@ -49,8 +49,8 @@ export default function HowItWorks() {
           <div>
             <p>
               A wire from Zurich to Buenos Aires passes several banks. 90% of SWIFT payments reach the receiving bank within
-              an hour, but the last step into the customer’s account is the bottleneck: compliance checks, capital controls and
-              opening hours. Only about a third of retail cross-border payments arrive within one hour.
+              an hour,<Cite id="swift2024" /> but the last step into the customer’s account is the bottleneck: compliance checks, capital controls and
+              opening hours.<Cite id="nilsson2022" /> Only about a third of retail cross-border payments arrive within one hour.<Cite id="fsb2025" />
             </p>
             <p>
               Polo Coin settles on its own ledger. Identity checks happen once, when a wallet is opened, not on every payment.
@@ -74,6 +74,6 @@ export default function HowItWorks() {
           </Card>
         </div>
       </Section>
-    </>
+    </Notes>
   );
 }
