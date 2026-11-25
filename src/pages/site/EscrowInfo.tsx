@@ -40,7 +40,7 @@ export default function EscrowInfo() {
       <Section title="Why it can be trusted">
         <div className="grid-3">
           <Card title="Nobody holds the money"><p>Locked PC sit in the contract’s own wallet. Not the buyer, not the seller, not Polo Coin can move them outside the rules.</p></Card>
-          <Card title="A trusted reporter"><p>A smart contract needs someone to report the real-world event. Here it is the vet. Polo Coin checks every vet once (identity, licence, liability insurance, declaration of independence), and buyer and seller agree on one they both trust.</p></Card>
+          <Card title="A trusted reporter"><p>A smart contract needs someone to report the real-world event. Here it is the vet. Polo Coin checks every vet once (identity, licence, liability insurance, declaration of independence), and buyer and seller agree on one they both trust. Every vet’s track record (examinations, passed and failed, missed deadlines) is counted by the contract and shown to both sides.</p></Card>
           <Card title="Fully backed"><p>Locked coins remain part of the supply and are backed 1:1 by the reserve like every other PC.</p></Card>
         </div>
       </Section>

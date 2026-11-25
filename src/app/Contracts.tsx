@@ -5,6 +5,7 @@ import { toast } from '../components/Toast';
 import { dateShort, daysLeft, money, shortHash, timeAgo } from '../format';
 import { useT } from '../i18n';
 import { useWallet } from '../wallet';
+import { VetProfile, vetSummary } from '../components/VetProfile';
 import { AmountInput, useSubmit } from './Pay';
 
 /** Smart contracts: escrow for horse purchases and win bonuses tied to a match result. */
@@ -243,7 +244,8 @@ function EscrowCard({ e }: { e: Escrow }) {
       <dl className="escrow-parties">
         <div><dt>{t('Buyer')}</dt><dd>{e.buyer_name}</dd></div>
         <div><dt>{t('Seller')}</dt><dd>{e.seller_name}</dd></div>
-        <div><dt>{t('Veterinarian')}</dt><dd>{e.vet_name}{e.vet_licence && <small className="licence">{t('Licence')} {e.vet_licence}, {t('verified by Polo Coin')}</small>}</dd></div>
+        <div><dt>{t('Veterinarian')}</dt><dd>{e.vet_name}{e.vet_licence && <small className="licence">{t('Licence')} {e.vet_licence}, {t('verified by Polo Coin')}</small>}
+          {e.vet_stats && <small className="licence">{vetSummary(e.vet_stats, t)}</small>}</dd></div>
       </dl>
       <p className="escrow-meta muted">
         {e.status === 'locked'
@@ -259,6 +261,9 @@ function EscrowCard({ e }: { e: Escrow }) {
             : t('The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.',
               { d: dateShort(e.expires_at, lang), n: String(left) })}
         </p>
+      )}
+      {e.status === 'locked' && isSeller && !accepted && e.vet_stats && (
+        <VetProfile name={e.vet_name} licence={e.vet_licence} stats={e.vet_stats} />
       )}
       {e.status === 'locked' && ((isVet && accepted) || (isBuyer && !accepted) || (isSeller && !accepted)) && (
         <div className="escrow-actions">
@@ -292,6 +297,7 @@ function CreateEscrow() {
   useEffect(() => { if (seller === '' && sellers.length) setSeller(sellers[0].id); }, [sellers, seller]);
   useEffect(() => { if (vet === '' && vets.length) setVet(vets[0].id); }, [vets, vet]);
   const amt = Number(v) || 0;
+  const chosen = vets.find((x) => x.id === vet);
 
   function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -319,6 +325,10 @@ function CreateEscrow() {
         </select>
         <small className="muted">{t('Only vets whose licence Polo Coin has checked are listed. Choose one you and the seller trust: the seller has to accept your choice.')}</small>
       </label>
+      {chosen?.vet_stats && (
+        <VetProfile name={chosen.display_name} org={chosen.org} licence={chosen.licence_no}
+          authority={chosen.licence_authority} stats={chosen.vet_stats} />
+      )}
       <AmountInput value={v} onChange={setV} cur="PC" max={account.pc} />
       <p className="muted small">{t('If the seller does not accept or the vet does not report within 14 days, the PC come back to you automatically.')}</p>
       {error && <p className="form-error" role="alert">{error}</p>}

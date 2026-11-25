@@ -1212,3 +1212,17 @@ input:not([type=radio]) { border-radius: var(--radius-s); }
 .vet-fields label.check, .vet-check label { display: flex; flex-direction: row; grid-template-columns: none; align-items: flex-start; gap: 10px; font-weight: 400; text-align: left; }
 .vet-fields label.check input[type=checkbox], .vet-check label input[type=checkbox] { width: 18px; height: 18px; flex: none; margin: 2px 0 0; padding: 0; }
 .vet-fields label.check span, .vet-check label span { flex: 1; }
+
+/* Vet profile with track record (escrow form and seller acceptance) */
+.vet-profile { border: 1px solid var(--line); border-left: 3px solid var(--forest); background: var(--paper); padding: 12px 14px; display: grid; gap: 10px; margin: 4px 0; }
+.vet-profile header { display: grid; gap: 2px; }
+.vet-profile header span { font-size: .86rem; color: var(--muted); }
+.vet-profile .vet-verified { color: var(--forest); font-weight: 600; }
+.vet-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.vet-stats > div { display: grid; gap: 1px; }
+.vet-stats dt { font-size: .76rem; color: var(--muted); }
+.vet-stats dd { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.vet-stats small { font-size: .74rem; color: var(--muted); }
+.vet-note { margin: 0; font-size: .76rem; color: var(--muted); }
+.escrow-create .vet-stats { grid-template-columns: 1fr 1fr; }
+.escrow-create .vet-stats > div:last-child { grid-column: 1 / -1; }

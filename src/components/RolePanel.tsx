@@ -77,11 +77,13 @@ function Vet() {
     <section className="panel role">
       <h2>Examinations</h2>
       <Figures items={[
-        ['Waiting for you', String(mine.filter((e) => e.status === 'locked').length)],
-        ['Reported', String(mine.filter((e) => e.status !== 'locked').length)],
-        ['Value secured', `PC ${money0(mine.reduce((s, e) => s + e.amount, 0))}`, 'Purchase prices you confirmed or are examining'],
+        ['Waiting for you', String(mine.filter((e) => e.status === 'locked' && e.accepted_at).length)],
+        ['Reported', String(mine.filter((e) => e.vet_passed !== null).length),
+          `${mine.filter((e) => e.vet_passed === true).length} passed, ${mine.filter((e) => e.vet_passed === false).length} failed`],
+        ['Missed deadlines', String(mine.filter((e) => e.refund_reason === 'expired' && e.accepted_at).length), 'No report within 14 days'],
       ]} />
-      <p className="hint">Your report is the trigger of the smart contract: “passed” pays the seller, “failed” refunds the buyer. <Link to="/app/escrow">Open escrows</Link></p>
+      <p className="hint">Your report is the trigger of the smart contract: “passed” pays the seller, “failed” refunds the buyer.
+        These figures are your public track record: buyers and sellers see them when they choose or accept a vet. <Link to="/app/escrow">Open escrows</Link></p>
     </section>
   );
 }

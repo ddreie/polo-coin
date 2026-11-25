@@ -109,7 +109,16 @@ const ES: Record<string, string> = {
   'Waiting for the seller to accept': 'Esperando que el vendedor acepte',
   'The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.':
     'El vendedor tiene hasta el {d} para aceptar (quedan {n} días). Hasta entonces el comprador aún puede cancelar.',
-  'Accept escrow and vet': 'Aceptar escrow y veterinario', 'Accept escrow': 'Aceptar escrow',
+  'Accept escrow and vet': 'Aceptar escrow y veterinario',
+  'Vet profile': 'Perfil del veterinario', 'Verified by Polo Coin': 'Verificado por Polo Coin', 'since {d}': 'desde el {d}',
+  'New on Polo Coin: no examinations reported yet.': 'Nuevo en Polo Coin: todavía no informó ningún examen.',
+  'Examinations': 'Exámenes', '{p} passed, {f} failed': '{p} aprobados, {f} no aprobados',
+  'Missed deadlines': 'Plazos incumplidos', 'No report within 14 days': 'Sin informe en 14 días',
+  'Value examined': 'Valor examinado', 'Purchase prices of reported horses': 'Precios de los caballos informados',
+  'Counted by the escrow contract from the ledger. Nobody can edit this record.':
+    'Lo cuenta el contrato de escrow a partir del registro. Nadie puede modificar este historial.',
+  'New vet, no examinations yet': 'Veterinario nuevo, todavía sin exámenes',
+  '{n} examinations, {m} missed deadlines': '{n} exámenes, {m} plazos incumplidos', 'Accept escrow': 'Aceptar escrow',
   'Declined by the seller, refunded to the buyer': 'Rechazado por el vendedor, reembolsado al comprador',
   'Not accepted by the seller within 14 days, refunded to the buyer': 'No aceptado por el vendedor en 14 días, reembolsado al comprador',
   'Only vets whose licence Polo Coin has checked are listed. Choose one you and the seller trust: the seller has to accept your choice.':

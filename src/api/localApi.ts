@@ -1,4 +1,4 @@
-import type { Account, Api, Applicant, Bonus, Escrow, Party, PayRequest, StandingOrder, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Bonus, Escrow, Party, PayRequest, StandingOrder, Stats, Tx, VetStats } from './types';
 import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
 
 /**
@@ -6,14 +6,14 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser. Keep it in sync with the SQL rules.
  */
-const KEY = 'polo-coin-demo-v7';
+const KEY = 'polo-coin-demo-v8';
 const FEE_RATE = 0.01;      // on every purchase of PC
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.042;
 const CASH_SHARE = 0.3;
 
 type Stored = Account & { password: string; created_at: string; kyc_by: number | null; independence_declared_at?: string | null };
-type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'vet_licence' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
+type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'vet_licence' | 'vet_stats' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
   & { lock_block: number | null; settle_block: number | null };
 type StoredRequest = Omit<PayRequest, 'requester_name' | 'payer_name' | 'tx_hash'> & { block: number | null };
 type StoredBonus = Omit<Bonus, 'patron_name' | 'player_name' | 'organizer_name' | 'lock_hash' | 'settle_hash'>
@@ -254,6 +254,13 @@ async function seed(): Promise<State> {
   await opBuy(s, patron, 60000);
   await opTransfer(s, patron, pro.id, 12000, 'Tournament fee, Snow Polo St. Moritz');
   await opRedeem(s, pro, 4000);
+  // Two earlier horse purchases examined by Dr. Ferrer, so her track record is not empty.
+  const pampero = await opEscrowLock(s, patron, 3, 6, 9000, 'Gelding "Pampero", 9 years');
+  opEscrowAccept(s, pampero.id, 3);
+  await opEscrowSettle(s, pampero.id, true, true, null);
+  const brisa = await opEscrowLock(s, patron, 3, 6, 7500, 'Mare "Brisa", 6 years');
+  opEscrowAccept(s, brisa.id, 3);
+  await opEscrowSettle(s, brisa.id, false, false, 'vet_failed');
   const bonita = await opEscrowLock(s, patron, 3, 6, 18000, 'Mare "La Bonita", 7 years');
   opEscrowAccept(s, bonita.id, 3);   // accepted, waiting for the vet
   await opBonusLock(s, patron, pro.id, 8, 3000, 'Final, Alpine Polo Cup');
@@ -273,10 +280,25 @@ function decorate(s: State, tx: Tx): Tx {
 }
 const hashOf = (s: State, block: number | null) => s.ledger.find((t) => t.block === block)?.tx_hash ?? null;
 const name = (s: State, id: number) => byId(s, id)?.display_name ?? '';
+/** A vet's public track record (mirrors polo.vet_stats). */
+function vetStats(s: State, vet: number): VetStats {
+  const mine = s.escrows.filter((e) => e.vet_id === vet);
+  const reported = mine.filter((e) => e.vet_passed !== null);
+  return {
+    reports: reported.length,
+    passed: reported.filter((e) => e.vet_passed === true).length,
+    failed: reported.filter((e) => e.vet_passed === false).length,
+    missed: mine.filter((e) => e.refund_reason === 'expired' && e.accepted_at).length,
+    open: mine.filter((e) => e.status === 'locked' && e.accepted_at).length,
+    volume: round2(reported.reduce((t, e) => t + e.amount, 0)),
+    verified_at: byId(s, vet)?.kyc_at ?? null,
+  };
+}
+
 function escrowOut(s: State, e: StoredEscrow): Escrow {
   const { lock_block, settle_block, ...rest } = e;
   return { ...rest, buyer_name: name(s, e.buyer_id), seller_name: name(s, e.seller_id), vet_name: name(s, e.vet_id),
-    vet_licence: byId(s, e.vet_id)?.licence_no ?? null,
+    vet_licence: byId(s, e.vet_id)?.licence_no ?? null, vet_stats: vetStats(s, e.vet_id),
     lock_hash: hashOf(s, lock_block), settle_hash: hashOf(s, settle_block), contract_wallet: byRole(s, 'contract').wallet };
 }
 function requestOut(s: State, r: StoredRequest): PayRequest {
@@ -400,7 +422,9 @@ export function createLocalApi(): Api {
     async directory(token) {
       const { s } = await auth(token);
       return s.accounts.filter((a) => a.kyc === 'verified' && a.role !== 'contract')
-        .map(({ id, display_name, role, org, country, wallet, licence_no }): Party => ({ id, display_name, role, org, country, wallet, licence_no: licence_no ?? null }));
+        .map(({ id, display_name, role, org, country, wallet, licence_no, licence_authority }): Party => ({
+          id, display_name, role, org, country, wallet, licence_no: licence_no ?? null, licence_authority: licence_authority ?? null,
+          vet_stats: role === 'vet' ? vetStats(s, id) : null }));
     },
     buy: (token, amount) => tx(token, async (s, acc) => decorate(s, await opBuy(s, acc, amount))),
     transfer: (token, to, amount, memo) => tx(token, async (s, acc) => decorate(s, await opTransfer(s, acc, to, amount, memo))),

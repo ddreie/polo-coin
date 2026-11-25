@@ -24,7 +24,8 @@ cancel; the vet reports the examination and the contract pays the seller or refu
 (`polo.config.escrow_days` = 14): seller acceptance within 14 days of locking, vet report within 14 days of acceptance,
 otherwise the contract refunds the buyer at the next call that touches escrows (`polo.op_escrow_expire_due`).
 Vets sign up with licence number, licensing authority, liability insurer and a declaration of independence; only the
-treasury (`admin`) verifies them, never the partner bank. Win bonus: the patron locks PC for a player; the named
+treasury (`admin`) verifies them, never the partner bank. Each vet's public track record (`polo.vet_stats`: reports, passed/failed,
+missed deadlines, value examined) is shown when choosing or accepting a vet. Win bonus: the patron locks PC for a player; the named
 organiser (role `organizer`) records won/lost and the contract pays or refunds. Standing orders pay weekly/monthly;
 due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Invariant: USD reserve = PC in
 circulation (incl. PC locked in contracts).

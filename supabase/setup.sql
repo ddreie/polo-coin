@@ -45,6 +45,9 @@
 --   * Vets sign up with licence number, licensing authority, liability
 --     insurer and a declaration of independence. Only the treasury verifies
 --     vets, because a vet's report decides where escrow money goes.
+--   * Vet track record (polo.vet_stats): examinations reported (passed /
+--     failed), missed deadlines, value examined and verified-since date,
+--     shown to buyers and sellers when they choose or accept a vet.
 --   * KYC: new users sign up with status 'pending'. They can log in but
 --     cannot buy, send, receive or cash out until the treasury (any
 --     applicant) or the partner bank (applicants from Argentina) verifies
@@ -284,6 +287,20 @@ language sql stable set search_path = '' as $$
     'amount', l.amount, 'fee', l.fee, 'memo', l.memo, 'created_at', l.created_at)
 $$;
 
+-- A vet's public track record, computed from the escrows the vet was named in.
+create function polo.vet_stats(p_vet int) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'reports',  count(*) filter (where e.vet_passed is not null),
+    'passed',   count(*) filter (where e.vet_passed is true),
+    'failed',   count(*) filter (where e.vet_passed is false),
+    'missed',   count(*) filter (where e.refund_reason = 'expired' and e.accepted_at is not null),
+    'open',     count(*) filter (where e.status = 'locked' and e.accepted_at is not null),
+    'volume',   coalesce(sum(e.amount) filter (where e.vet_passed is not null), 0),
+    'verified_at', (select kyc_at from polo.accounts where id = p_vet))
+  from polo.escrows e where e.vet_id = p_vet
+$$;
+
 create function polo.escrow_json(e polo.escrows) returns json
 language sql stable set search_path = '' as $$
   select json_build_object(
@@ -294,6 +311,7 @@ language sql stable set search_path = '' as $$
     'vet_name',    (select display_name from polo.accounts where id = e.vet_id),
     'refund_reason', e.refund_reason, 'accepted_at', e.accepted_at,
     'vet_licence', (select licence_no from polo.accounts where id = e.vet_id),
+    'vet_stats',   polo.vet_stats(e.vet_id),
     'created_at', e.created_at, 'expires_at', e.expires_at, 'settled_at', e.settled_at,
     'lock_hash',   (select tx_hash from polo.ledger where block = e.lock_block),
     'settle_hash', (select tx_hash from polo.ledger where block = e.settle_block),
@@ -610,6 +628,13 @@ begin
   perform polo.op_buy(v_patron, 60000);
   perform polo.op_transfer(v_patron, v_pro, 12000, 'Tournament fee, Snow Polo St. Moritz');
   perform polo.op_redeem(v_pro, 4000);
+  -- Two earlier horse purchases examined by Dr. Ferrer, so her track record is not empty.
+  v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 9000, 'Gelding "Pampero", 9 years');
+  perform polo.op_escrow_accept(v_e.id, v_breeder);
+  perform polo.op_escrow_settle(v_e.id, true, true, null);
+  v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 7500, 'Mare "Brisa", 6 years');
+  perform polo.op_escrow_accept(v_e.id, v_breeder);
+  perform polo.op_escrow_settle(v_e.id, false, false, 'vet_failed');
   v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 18000, 'Mare "La Bonita", 7 years');
   perform polo.op_escrow_accept(v_e.id, v_breeder);   -- accepted, waiting for the vet
   v_b := polo.op_bonus_lock(v_patron, v_pro, v_org, 3000, 'Final, Alpine Polo Cup');
@@ -657,7 +682,9 @@ language plpgsql security definer set search_path = '' as $$
 begin
   perform polo.auth(p_token);
   return (select coalesce(json_agg(json_build_object('id', id, 'display_name', display_name,
-            'role', role, 'org', org, 'country', country, 'wallet', wallet, 'licence_no', licence_no) order by id), '[]')
+            'role', role, 'org', org, 'country', country, 'wallet', wallet, 'licence_no', licence_no,
+            'licence_authority', licence_authority,
+            'vet_stats', case when role = 'vet' then polo.vet_stats(id) end) order by id), '[]')
           from polo.accounts where kyc = 'verified' and role <> 'contract');
 end $$;
 

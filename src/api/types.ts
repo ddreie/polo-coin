@@ -20,7 +20,19 @@ export interface Account {
   pc: number;
 }
 
-export type Party = Pick<Account, 'id' | 'display_name' | 'role' | 'org' | 'country' | 'wallet'> & { licence_no?: string | null };
+/** A vet's public track record, computed from the escrows the vet was named in. */
+export interface VetStats {
+  reports: number;   // examinations reported
+  passed: number;
+  failed: number;
+  missed: number;    // accepted escrows refunded because the vet did not report within 14 days
+  open: number;      // accepted escrows waiting for the report
+  volume: number;    // PC value of the reported examinations
+  verified_at: string | null;
+}
+
+export type Party = Pick<Account, 'id' | 'display_name' | 'role' | 'org' | 'country' | 'wallet'>
+  & { licence_no?: string | null; licence_authority?: string | null; vet_stats?: VetStats | null };
 
 /** A sign-up as seen by the treasury or the partner bank in the KYC review. */
 export interface Applicant extends Party {
@@ -108,6 +120,7 @@ export interface Escrow {
   /** The seller accepted the escrow and the proposed vet. Before that the vet cannot report. */
   accepted_at: string | null;
   vet_licence: string | null;
+  vet_stats: VetStats;
   buyer_id: number; seller_id: number; vet_id: number;
   buyer_name: string; seller_name: string; vet_name: string;
   created_at: string;
