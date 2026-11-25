@@ -6,14 +6,14 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser. Keep it in sync with the SQL rules.
  */
-const KEY = 'polo-coin-demo-v6';
+const KEY = 'polo-coin-demo-v7';
 const FEE_RATE = 0.01;      // on every purchase of PC
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.042;
 const CASH_SHARE = 0.3;
 
-type Stored = Account & { password: string; created_at: string; kyc_by: number | null };
-type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
+type Stored = Account & { password: string; created_at: string; kyc_by: number | null; independence_declared_at?: string | null };
+type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'vet_licence' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
   & { lock_block: number | null; settle_block: number | null };
 type StoredRequest = Omit<PayRequest, 'requester_name' | 'payer_name' | 'tx_hash'> & { block: number | null };
 type StoredBonus = Omit<Bonus, 'patron_name' | 'player_name' | 'organizer_name' | 'lock_hash' | 'settle_hash'>
@@ -114,7 +114,7 @@ async function opEscrowLock(s: State, buyer: Stored, seller: number, vet: number
   if (buyer.pc < amt) throw new Error(`Insufficient PC balance (available: ${buyer.pc.toFixed(2)}).`);
   const contract = byRole(s, 'contract');
   const e: StoredEscrow = {
-    id: s.escrows.length + 1, amount: amt, item: what, status: 'locked', vet_passed: null, refund_reason: null,
+    id: s.escrows.length + 1, amount: amt, item: what, status: 'locked', vet_passed: null, refund_reason: null, accepted_at: null,
     buyer_id: buyer.id, seller_id: seller, vet_id: vet, created_at: now(),
     expires_at: new Date(Date.now() + ESCROW_DAYS * 86400000).toISOString(),
     settled_at: null, lock_block: null, settle_block: null,
@@ -137,6 +137,8 @@ async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed:
   to.pc = round2(to.pc + e.amount);
   const why = release ? ': vet check passed, paid to seller'
     : reason === 'vet_failed' ? ': vet check failed, refunded'
+    : reason === 'declined' ? ': declined by seller, refunded'
+    : reason === 'expired' && !e.accepted_at ? `: not accepted by seller within ${ESCROW_DAYS} days, refunded`
     : reason === 'expired' ? `: no vet report within ${ESCROW_DAYS} days, refunded`
     : ': cancelled by buyer, refunded';
   const t = await append(s, release ? 'release' : 'refund', contract.id, to.id, e.amount, 0, `Escrow #${e.id}${why}`);
@@ -145,7 +147,18 @@ async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed:
   return e;
 }
 
-/** Escrow deadline: refund every open escrow whose vet report is overdue. */
+/** The seller accepts the escrow and the proposed vet: the vet now has 14 days to report, the buyer can no longer cancel. */
+function opEscrowAccept(s: State, id: number, seller: number) {
+  const e = s.escrows.find((x) => x.id === id);
+  if (!e) throw new Error('Escrow not found.');
+  if (e.seller_id !== seller) throw new Error(`Only the seller named in escrow #${e.id} can accept it.`);
+  if (e.status !== 'locked') throw new Error(`Escrow #${e.id} is already ${e.status}.`);
+  if (e.accepted_at) throw new Error(`You have already accepted escrow #${e.id}.`);
+  Object.assign(e, { accepted_at: now(), expires_at: new Date(Date.now() + ESCROW_DAYS * 86400000).toISOString() });
+  return e;
+}
+
+/** Escrow deadline: refund every open escrow whose seller acceptance or vet report is overdue. */
 async function opEscrowExpireDue(s: State) {
   const due = s.escrows.filter((e) => e.status === 'locked' && e.expires_at <= now()).sort((a, b) => a.id - b.id);
   for (const e of due) await opEscrowSettle(s, e.id, false, null, 'expired');
@@ -219,13 +232,19 @@ async function seed(): Promise<State> {
       await mk(3, 'breeder', 'Estancia La Aurora', 'breeder', 'Polo pony breeder', 'Argentina', 0),
       await mk(4, 'bank', 'Banco Pampa Sur', 'bank', 'Partner bank (fictional)', 'Argentina', 0),
       await mk(5, 'admin', 'Polo Coin Treasury', 'admin', 'Issuer & reserve manager', 'Switzerland', 0),
-      await mk(6, 'vet', 'Dr. Lucía Ferrer', 'vet', 'Equine vet, Pilar (fictional)', 'Argentina', 0),
+      { ...await mk(6, 'vet', 'Dr. Lucía Ferrer', 'vet', 'Equine vet, Pilar (fictional)', 'Argentina', 0),
+        licence_no: 'MP 3307 (fictional)', licence_authority: 'Provincial veterinary register, Buenos Aires',
+        insurer: 'Seguros del Plata (fictional)', independence_declared_at: new Date(Date.now() - 200 * 86400000).toISOString(),
+        kyc_by: 5, kyc_at: new Date(Date.now() - 199 * 86400000).toISOString() },
       await mk(7, 'groom', 'Martín Gómez', 'groom', 'Groom, Team Blue Oak', 'Argentina', 0),
       await mk(8, 'organizer', 'Alpine Polo Events', 'organizer', 'Tournament organiser (fictional)', 'Switzerland', 0),
       await mk(9, 'escrow', 'Polo Coin Escrow Contract', 'contract', 'Smart contract', 'Switzerland', 0),
       // Two open sign-up applications, so the KYC review can be shown right away.
       await mk(10, 'charlotte', 'Charlotte Hayes', 'patron', 'Team Hollow Creek', 'United States', 100000, 'pending', 120),
       await mk(11, 'valentina', 'Valentina Arrieta', 'pro', '4-goal professional', 'Argentina', 0, 'pending', 25),
+      { ...await mk(12, 'tomas', 'Dr. Tomás Iriarte', 'vet', 'Equine clinic, Cañuelas (fictional)', 'Argentina', 0, 'pending', 50),
+        licence_no: 'MP 5172 (fictional)', licence_authority: 'Provincial veterinary register, Buenos Aires',
+        insurer: 'Seguros del Plata (fictional)', independence_declared_at: new Date(Date.now() - 50 * 60000).toISOString() },
     ],
     sessions: {}, reserve: 0, ledger: [], escrows: [], requests: [], bonuses: [], standing: [],
   };
@@ -235,7 +254,8 @@ async function seed(): Promise<State> {
   await opBuy(s, patron, 60000);
   await opTransfer(s, patron, pro.id, 12000, 'Tournament fee, Snow Polo St. Moritz');
   await opRedeem(s, pro, 4000);
-  await opEscrowLock(s, patron, 3, 6, 18000, 'Mare "La Bonita", 7 years');
+  const bonita = await opEscrowLock(s, patron, 3, 6, 18000, 'Mare "La Bonita", 7 years');
+  opEscrowAccept(s, bonita.id, 3);   // accepted, waiting for the vet
   await opBonusLock(s, patron, pro.id, 8, 3000, 'Final, Alpine Polo Cup');
   // The groom's monthly wages: paid once already, next instalment due in a month.
   s.standing.push({ id: 1, payer_id: patron.id, payee_id: 7, amount: 2500, memo: 'Monthly wages', every: 'month',
@@ -256,6 +276,7 @@ const name = (s: State, id: number) => byId(s, id)?.display_name ?? '';
 function escrowOut(s: State, e: StoredEscrow): Escrow {
   const { lock_block, settle_block, ...rest } = e;
   return { ...rest, buyer_name: name(s, e.buyer_id), seller_name: name(s, e.seller_id), vet_name: name(s, e.vet_id),
+    vet_licence: byId(s, e.vet_id)?.licence_no ?? null,
     lock_hash: hashOf(s, lock_block), settle_hash: hashOf(s, settle_block), contract_wallet: byRole(s, 'contract').wallet };
 }
 function requestOut(s: State, r: StoredRequest): PayRequest {
@@ -277,7 +298,8 @@ function publicAccount(s: State, a: Stored): Account {
 }
 /** Treasury reviews everyone, the partner bank reviews applicants from Argentina. */
 function canReview(r: Stored, a: Stored) {
-  return !['bank', 'admin', 'vet', 'organizer', 'contract'].includes(a.role) && (r.role === 'admin' || (r.role === 'bank' && a.country === 'Argentina'));
+  return !['bank', 'admin', 'organizer', 'contract'].includes(a.role)
+    && (r.role === 'admin' || (r.role === 'bank' && a.country === 'Argentina' && a.role !== 'vet'));
 }
 
 export function createLocalApi(): Api {
@@ -340,7 +362,15 @@ export function createLocalApi(): Api {
       if (!/^[a-z0-9_]{3,20}$/.test(username)) throw new Error('Username: 3 to 20 characters, only letters, digits and _.');
       if ((f.password ?? '').length < 6) throw new Error('Password: at least 6 characters.');
       if (nm.length < 2 || nm.length > 60) throw new Error('Please enter your full name (max. 60 characters).');
-      if (!['patron', 'pro', 'breeder', 'groom'].includes(f.role)) throw new Error('Choose patron, professional player, breeder or groom.');
+      if (!['patron', 'pro', 'breeder', 'groom', 'vet'].includes(f.role)) throw new Error('Choose patron, professional player, breeder, groom or veterinarian.');
+      const vet = f.role === 'vet';
+      if (vet) {
+        const lic = (f.licence_no ?? '').trim(), auth = (f.licence_authority ?? '').trim(), ins = (f.insurer ?? '').trim();
+        if (lic.length < 3 || lic.length > 30) throw new Error('Vets: please enter your licence number (3 to 30 characters).');
+        if (auth.length < 3 || auth.length > 80) throw new Error('Vets: please name the register or authority that issued your licence.');
+        if (ins.length < 2 || ins.length > 60) throw new Error('Vets: please name your professional liability insurer.');
+        if (!f.independent) throw new Error('Vets: please confirm the declaration of independence.');
+      }
       if (country.length < 2 || country.length > 40 || org.length > 60) throw new Error('Please enter a country (and an organisation of max. 60 characters).');
       if (s.accounts.some((a) => a.username === username)) throw new Error('This username is taken. Please choose another one.');
       if (s.accounts.length >= 200) throw new Error('Demo limit reached. Ask the treasury to reset the demo.');
@@ -349,6 +379,8 @@ export function createLocalApi(): Api {
         usd: f.role === 'patron' ? 100000 : 0, pc: 0, kyc: 'pending', password: f.password,
         wallet: '0x' + (await sha256(username + ':' + crypto.randomUUID())).slice(0, 40),
         created_at: now(), kyc_by: null, kyc_at: null,
+        ...(vet ? { licence_no: f.licence_no!.trim(), licence_authority: f.licence_authority!.trim(),
+          insurer: f.insurer!.trim(), independence_declared_at: now() } : {}),
       };
       s.accounts.push(a);
       const token = crypto.randomUUID();
@@ -368,7 +400,7 @@ export function createLocalApi(): Api {
     async directory(token) {
       const { s } = await auth(token);
       return s.accounts.filter((a) => a.kyc === 'verified' && a.role !== 'contract')
-        .map(({ id, display_name, role, org, country, wallet }): Party => ({ id, display_name, role, org, country, wallet }));
+        .map(({ id, display_name, role, org, country, wallet, licence_no }): Party => ({ id, display_name, role, org, country, wallet, licence_no: licence_no ?? null }));
     },
     buy: (token, amount) => tx(token, async (s, acc) => decorate(s, await opBuy(s, acc, amount))),
     transfer: (token, to, amount, memo) => tx(token, async (s, acc) => decorate(s, await opTransfer(s, acc, to, amount, memo))),
@@ -422,6 +454,8 @@ export function createLocalApi(): Api {
           id: a.id, username: a.username, display_name: a.display_name, role: a.role, org: a.org, country: a.country,
           wallet: a.wallet, kyc: a.kyc, created_at: a.created_at, kyc_at: a.kyc_at ?? null,
           kyc_by_name: byId(s, a.kyc_by)?.display_name ?? null,
+          licence_no: a.licence_no ?? null, licence_authority: a.licence_authority ?? null, insurer: a.insurer ?? null,
+          independence_declared_at: a.independence_declared_at ?? null,
         }));
     },
     async kycDecide(token, id, approve) {
@@ -429,7 +463,7 @@ export function createLocalApi(): Api {
       const { s, acc } = await auth(token);
       const a = byId(s, id);
       if (!a) throw new Error('Applicant not found.');
-      if (!canReview(acc, a)) throw new Error('You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone.');
+      if (!canReview(acc, a)) throw new Error('You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone and alone checks vets.');
       if (a.kyc !== 'pending') throw new Error(`${a.display_name} has already been ${a.kyc}.`);
       Object.assign(a, { kyc: approve ? 'verified' : 'rejected', kyc_by: acc.id, kyc_at: now() });
       save(s);
@@ -451,6 +485,7 @@ export function createLocalApi(): Api {
       if (e.vet_id !== acc.id) throw new Error(`Only the veterinarian named in escrow #${e.id} can report the examination.`);
       await opEscrowExpireDue(s);   // deadline passed: the refund wins over a late report
       if (e.refund_reason === 'expired') return escrowOut(s, e);
+      if (e.status === 'locked' && !e.accepted_at) throw new Error(`The seller has not accepted escrow #${e.id} yet. You can report once the seller has accepted you as vet.`);
       return escrowOut(s, await opEscrowSettle(s, id, passed, passed, passed ? null : 'vet_failed'));
     }),
     escrowCancel: (token, id) => tx(token, async (s, acc) => {
@@ -459,7 +494,25 @@ export function createLocalApi(): Api {
       if (e.buyer_id !== acc.id) throw new Error(`Only the buyer can cancel escrow #${e.id}.`);
       await opEscrowExpireDue(s);
       if (e.refund_reason === 'expired') return escrowOut(s, e);
+      if (e.status === 'locked' && e.accepted_at) {
+        throw new Error(`The seller has accepted escrow #${e.id}, so it can no longer be cancelled. It settles with the vet's report, or refunds you if there is none within ${ESCROW_DAYS} days.`);
+      }
       return escrowOut(s, await opEscrowSettle(s, id, false, null, 'cancelled'));
+    }),
+    escrowAccept: (token, id) => tx(token, async (s, acc) => {
+      await opEscrowExpireDue(s);
+      const e = s.escrows.find((x) => x.id === id);
+      if (e?.refund_reason === 'expired') return escrowOut(s, e);
+      return escrowOut(s, opEscrowAccept(s, id, acc.id));
+    }),
+    escrowDecline: (token, id) => tx(token, async (s, acc) => {
+      await opEscrowExpireDue(s);
+      const e = s.escrows.find((x) => x.id === id);
+      if (!e) throw new Error('Escrow not found.');
+      if (e.seller_id !== acc.id) throw new Error(`Only the seller named in escrow #${e.id} can decline it.`);
+      if (e.refund_reason === 'expired') return escrowOut(s, e);
+      if (e.status === 'locked' && e.accepted_at) throw new Error(`You have already accepted escrow #${e.id}. It now settles with the vet's report.`);
+      return escrowOut(s, await opEscrowSettle(s, id, false, null, 'declined'));
     }),
     async requests(token) {
       const { s, acc } = await auth(token);

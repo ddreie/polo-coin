@@ -30,6 +30,8 @@ const FAQ: { group: string; items: [string, ReactNode][] }[] = [
       <>You cash out in US dollars at the partner in Argentina. Converting them into pesos is possible as with any dollar account and costs about the same with any provider, subject to Argentine foreign exchange rules.</>],
     ['What happens if the horse fails the vet check?',
       <>The escrow contract sends the money straight back to the buyer. Only the vet named in the contract can report the result. If the vet does not report within 14 days, the buyer is refunded as well. <Link to="/escrow">How escrow works</Link>.</>],
+    ['Who can be the vet in an escrow?',
+      <>Only vets verified by Polo Coin. When they sign up, the Polo Coin Treasury checks their identity, their veterinary licence in the issuing register, their professional liability insurance and a declaration of independence from the seller. For each purchase the buyer proposes one of these vets and the seller has to accept. <Link to="/escrow">How escrow works</Link>.</>],
     ['Who can open an account?',
       <>Patrons, professional players, breeders and grooms, after an identity check. There are no anonymous wallets. <Link to="/security">Security and regulation</Link>.</>],
   ] },

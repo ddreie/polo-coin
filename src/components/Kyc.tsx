@@ -11,7 +11,8 @@ export function KycBadge({ kyc }: { kyc: Account['kyc'] }) {
 
 /** Shown instead of the actions while an account has not passed KYC. */
 export function KycStatus({ account }: { account: Account }) {
-  const reviewer = account.country === 'Argentina'
+  const isVet = account.role === 'vet';
+  const reviewer = account.country === 'Argentina' && !isVet
     ? 'the Polo Coin Treasury or our partner bank Banco Pampa Sur'
     : 'the Polo Coin Treasury';
   if (account.kyc === 'rejected') {
@@ -31,24 +32,39 @@ export function KycStatus({ account }: { account: Account }) {
       <p>
         Thanks for signing up. Before you can use Polo Coin, {reviewer} has to verify who you are. This is required
         by anti-money-laundering rules: every holder of Polo Coin must be identified.
+        {isVet && <> As a vet your report decides where escrow money goes, so the Treasury also checks your licence
+          ({account.licence_no}), your liability insurance and your declaration of independence.</>}
       </p>
       <ol className="kyc-steps">
         <li className="done"><strong>Account opened</strong><span>Wallet created, not yet active</span></li>
-        <li className="now"><strong>Identity check</strong><span>Waiting for review</span></li>
-        <li><strong>Ready to pay</strong><span>Buy, send, receive and cash out PC</span></li>
+        <li className="now"><strong>{isVet ? 'Identity and licence check' : 'Identity check'}</strong><span>Waiting for review</span></li>
+        <li><strong>{isVet ? 'Listed as verified vet' : 'Ready to pay'}</strong>
+          <span>{isVet ? 'Buyers and sellers can choose you for an escrow' : 'Buy, send, receive and cash out PC'}</span></li>
       </ol>
       <p className="hint">
-        To try it out: open a second window, log in as <code>admin</code> (or <code>bank</code> for applicants from
-        Argentina) and verify this account. This page updates by itself.
+        To try it out: open a second window, log in as <code>admin</code>{!isVet && <> (or <code>bank</code> for applicants from
+        Argentina)</>} and verify this account. This page updates by itself.
       </p>
     </section>
   );
 }
 
-/** Review list for the treasury (everyone) and the partner bank (applicants from Argentina). */
+/** What the treasury checks before a vet may report on escrows (simulated: the reviewer ticks each step). */
+const VET_CHECKS: [string, string][] = [
+  ['identity', 'Identity checked (passport, address)'],
+  ['licence', 'Licence found in the issuing register and valid'],
+  ['insurance', 'Professional liability insurance confirmed'],
+  ['independence', 'Declaration of independence signed'],
+];
+
+/** Review list for the treasury (everyone, vets only here) and the partner bank (applicants from Argentina). */
 export function KycReview({ token, account }: { token: string; account: Account }) {
   const [list, setList] = useState<Applicant[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
+  // The treasury's licence checklist per vet applicant: all four boxes before "Verify".
+  const [checks, setChecks] = useState<Record<number, Record<string, boolean>>>({});
+  const tick = (id: number, k: string, v: boolean) => setChecks((c) => ({ ...c, [id]: { ...c[id], [k]: v } }));
+  const allChecked = (id: number) => VET_CHECKS.every(([k]) => checks[id]?.[k]);
 
   const load = useCallback(() => api.kycQueue(token).then(setList).catch(() => undefined), [token]);
   useEffect(() => {
@@ -81,8 +97,8 @@ export function KycReview({ token, account }: { token: string; account: Account 
       </div>
       <p className="muted kyc-scope">
         {account.role === 'admin'
-          ? 'As the issuer, the treasury is responsible for identifying every holder of Polo Coin. You review all applicants.'
-          : 'You review applicants from Argentina on behalf of the treasury, since you know them from the cash-out anyway.'}
+          ? 'As the issuer, the treasury is responsible for identifying every holder of Polo Coin. You review all applicants, and only you check vets, because their report decides where escrow money goes.'
+          : 'You review applicants from Argentina on behalf of the treasury, since you know them from the cash-out anyway. Vets are checked by the treasury.'}
       </p>
 
       {list === null ? <p className="muted">Loading…</p> : pending.length === 0 ? (
@@ -90,7 +106,7 @@ export function KycReview({ token, account }: { token: string; account: Account 
       ) : (
         <ul className="applicants">
           {pending.map((a) => (
-            <li key={a.id} className="applicant">
+            <li key={a.id} className={`applicant${a.role === 'vet' ? ' is-vet' : ''}`}>
               <Avatar name={a.display_name} role={a.role} size={40} />
               <div className="applicant-text">
                 <strong>{a.display_name}</strong>
@@ -98,11 +114,27 @@ export function KycReview({ token, account }: { token: string; account: Account 
                 <small>Username {a.username}, applied {timeAgo(a.created_at)}</small>
               </div>
               <div className="applicant-actions">
-                <button className="btn btn-small" disabled={busy !== null} onClick={() => decide(a, true)}>
+                <button className="btn btn-small" disabled={busy !== null || (a.role === 'vet' && !allChecked(a.id))}
+                  title={a.role === 'vet' && !allChecked(a.id) ? 'Tick all four checks first' : undefined} onClick={() => decide(a, true)}>
                   {busy === a.id ? 'Saving…' : 'Verify'}
                 </button>
                 <button className="btn btn-small btn-ghost" disabled={busy !== null} onClick={() => decide(a, false)}>Reject</button>
               </div>
+              {a.role === 'vet' && (
+                <div className="vet-check">
+                  <dl>
+                    <dt>Licence</dt><dd>{a.licence_no}, {a.licence_authority}</dd>
+                    <dt>Insurance</dt><dd>{a.insurer}</dd>
+                    <dt>Independence</dt><dd>{a.independence_declared_at ? `declared ${timeAgo(a.independence_declared_at)}` : 'not declared'}</dd>
+                  </dl>
+                  {VET_CHECKS.map(([k, label]) => (
+                    <label key={k}>
+                      <input type="checkbox" checked={!!checks[a.id]?.[k]} onChange={(e) => tick(a.id, k, e.target.checked)} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>

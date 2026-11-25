@@ -42,7 +42,7 @@ export default function Login() {
         <div className="login-intro">
           <h1>Log in to a demo wallet</h1>
           <p>
-            Pick an account to log in instantly. The easiest way in is the guided tour: eight steps through the
+            Pick an account to log in instantly. The easiest way in is the guided tour: nine steps through the
             whole business case, switching roles with one click.
           </p>
           <p><button className="btn btn-accent" onClick={() => { startTour(); goToStep(0); }}>Start the guided tour</button></p>

@@ -10,13 +10,16 @@ const ROLES: { id: SignUp['role']; what: string }[] = [
   { id: 'pro', what: 'You play for a patron and receive your fees in Polo Coin.' },
   { id: 'breeder', what: 'You sell or train polo ponies and receive payments in Polo Coin.' },
   { id: 'groom', what: 'You care for the horses and receive your wages in Polo Coin.' },
+  { id: 'vet', what: 'You examine horses before a sale and report the result to the escrow contract. Your licence is checked by the Polo Coin Treasury.' },
 ];
 
 const COUNTRIES = ['Argentina', 'United Kingdom', 'United States', 'Switzerland', 'Germany', 'France', 'Spain', 'Uruguay'];
 
 export default function Register() {
   const onLogin = useSession().login;
-  const [f, setF] = useState<SignUp>({ username: '', password: '', display_name: '', role: 'patron', org: '', country: '' });
+  const [f, setF] = useState<SignUp>({ username: '', password: '', display_name: '', role: 'patron', org: '', country: '',
+    licence_no: '', licence_authority: '', insurer: '', independent: false });
+  const isVet = f.role === 'vet';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof SignUp) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -43,6 +46,11 @@ export default function Register() {
             the identity check (KYC) is done: the Polo Coin Treasury reviews every applicant, and the partner bank
             Banco Pampa Sur reviews applicants from Argentina. Until then you can log in, but not buy, send or receive PC.
           </p>
+          <p>
+            <strong>Veterinarians</strong> decide where escrow money goes, so they are checked more strictly and only by the
+            Treasury: identity, veterinary licence, professional liability insurance and a declaration of independence.
+            Once verified, buyers and sellers can choose them for a horse purchase.
+          </p>
           <p className="note">This is a demo. Please use fictional details, not your real name or data.</p>
         </div>
 
@@ -66,11 +74,28 @@ export default function Register() {
             </label>
             <label className="span2"><span>Team, club or business <span className="optional">(optional)</span></span>
               <input maxLength={60} value={f.org} onChange={set('org')}
-                placeholder={f.role === 'patron' ? 'e.g. Team Silver Ridge' : f.role === 'pro' ? 'e.g. 5-goal professional' : 'e.g. Haras El Ombú'} />
+                placeholder={f.role === 'patron' ? 'e.g. Team Silver Ridge' : f.role === 'pro' ? 'e.g. 5-goal professional'
+                  : isVet ? 'e.g. Equine clinic, Pilar' : 'e.g. Haras El Ombú'} />
             </label>
             <label>Username<input required autoComplete="username" value={f.username} onChange={set('username')} placeholder="3–20 letters, digits or _" /></label>
             <label>Password<input required type="password" autoComplete="new-password" minLength={6} value={f.password} onChange={set('password')} placeholder="At least 6 characters" /></label>
           </div>
+
+          {isVet && (
+            <fieldset className="vet-fields">
+              <legend>Veterinary licence</legend>
+              <div className="signup-grid">
+                <label>Licence number<input required maxLength={30} value={f.licence_no} onChange={set('licence_no')} placeholder="e.g. MP 1234" /></label>
+                <label>Issued by<input required maxLength={80} value={f.licence_authority} onChange={set('licence_authority')} placeholder="e.g. Provincial veterinary register" /></label>
+                <label className="span2">Professional liability insurer<input required maxLength={60} value={f.insurer} onChange={set('insurer')} placeholder="Insurance that covers a wrong examination report" /></label>
+              </div>
+              <label className="check">
+                <input type="checkbox" required checked={!!f.independent} onChange={(e) => setF({ ...f, independent: e.target.checked })} />
+                <span>I declare that I will only examine horses for sales in which I am independent: I am not employed by,
+                  related to or paid by the seller, and I report the result truthfully.</span>
+              </label>
+            </fieldset>
+          )}
 
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="btn btn-wide" disabled={busy}>{busy ? 'Submitting…' : 'Sign up and submit for KYC'}</button>

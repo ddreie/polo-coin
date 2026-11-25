@@ -22,7 +22,7 @@ export interface TourStep {
   text: string;
 }
 
-/** The guided demo: the whole business case in eight steps, switching roles with one click. */
+/** The guided demo: the whole business case in nine steps, switching roles with one click. */
 export const TOUR: TourStep[] = [
   { as: 'patron', path: '/app/pay?tab=buy', title: 'Buy Polo Coin',
     text: 'James buys PC with US dollars from his bank account. He pays a single 1% fee on top, and the dollars go into the reserve.' },
@@ -31,7 +31,9 @@ export const TOUR: TourStep[] = [
   { as: 'pro', path: '/app', title: 'Paid in seconds',
     text: 'Now as Facundo: the fee is already in his wallet. Switch the language to Español at the top right.' },
   { as: 'patron', path: '/app/escrow', title: 'Buy a horse with escrow',
-    text: 'James locks the price of a horse in the escrow contract. Pick the breeder as seller and Dr. Ferrer as vet.' },
+    text: 'James locks the price of a horse in the escrow contract. Pick the breeder as seller and Dr. Ferrer, a vet verified by Polo Coin.' },
+  { as: 'breeder', path: '/app/escrow', title: 'The seller accepts',
+    text: 'Estancia La Aurora accepts the escrow and Dr. Ferrer as vet. From now on James can no longer cancel, and the vet has 14 days to report.' },
   { as: 'vet', path: '/app/escrow', title: 'The vet confirms',
     text: 'Dr. Ferrer reports the pre-purchase examination. If it passes, the contract pays the breeder automatically.' },
   { as: 'organizer', path: '/app/escrow?type=bonus', title: 'The final is won',

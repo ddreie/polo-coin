@@ -17,6 +17,8 @@ export function createSupabaseApi(url: string, key: string): Api {
     register: (f) => rpc('api_register', {
       p_username: f.username, p_password: f.password, p_display_name: f.display_name,
       p_role: f.role, p_org: f.org, p_country: f.country,
+      ...(f.role === 'vet' ? { p_licence_no: f.licence_no ?? '', p_licence_authority: f.licence_authority ?? '',
+        p_insurer: f.insurer ?? '', p_independent: !!f.independent } : {}),
     }),
     logout: (t) => rpc('api_logout', { p_token: t }),
     me: (t) => rpc<Account>('api_me', { p_token: t }).then(num),
@@ -37,6 +39,8 @@ export function createSupabaseApi(url: string, key: string): Api {
       rpc<Escrow>('api_escrow_create', { p_token: t, p_seller: seller, p_vet: vet, p_amount: amount, p_item: item }).then(num),
     escrowVet: (t, id, passed) => rpc<Escrow>('api_escrow_vet', { p_token: t, p_escrow: id, p_passed: passed }).then(num),
     escrowCancel: (t, id) => rpc<Escrow>('api_escrow_cancel', { p_token: t, p_escrow: id }).then(num),
+    escrowAccept: (t, id) => rpc<Escrow>('api_escrow_accept', { p_token: t, p_escrow: id }).then(num),
+    escrowDecline: (t, id) => rpc<Escrow>('api_escrow_decline', { p_token: t, p_escrow: id }).then(num),
     requests: (t) => rpc<PayRequest[]>('api_requests', { p_token: t }).then((r) => r.map(num)),
     requestCreate: (t, payer, amount, memo) =>
       rpc<PayRequest>('api_request_create', { p_token: t, p_payer: payer, p_amount: amount, p_memo: memo }).then(num),

@@ -54,9 +54,10 @@ function EscrowSection() {
 }
 
 function ContractSteps({ steps = [
-  ['Lock', 'Buyer’s PC move into the contract wallet'],
-  ['Examine', 'The named vet checks the horse'],
-  ['Settle', 'Passed: paid to seller. Failed or no report within 14 days: back to buyer'],
+  ['Lock', 'Buyer locks the price and proposes a verified vet'],
+  ['Accept', 'Seller accepts the terms and the vet, or declines'],
+  ['Examine', 'The vet checks the horse and reports'],
+  ['Settle', 'Passed: paid to seller. Failed, declined or no response within 14 days: back to buyer'],
 ] }: { steps?: string[][] }) {
   const { t } = useT();
   return (
@@ -195,13 +196,18 @@ function EscrowCard({ e }: { e: Escrow }) {
   const { t, lang } = useT();
   const { busy, error, run } = useSubmit();
   const isVet = e.vet_id === account.id && account.kyc === 'verified';
+  const isSeller = e.seller_id === account.id && account.kyc === 'verified';
+  const accepted = !!e.accepted_at;
   const left = daysLeft(e.expires_at);
   const outcome = e.vet_passed === true ? t('Vet check passed')
+    : e.refund_reason === 'expired' && !accepted ? t('Not accepted by the seller within 14 days, refunded to the buyer')
     : e.refund_reason === 'expired' ? t('No vet report within 14 days, refunded to the buyer')
+    : e.refund_reason === 'declined' ? t('Declined by the seller, refunded to the buyer')
     : e.vet_passed === false || e.refund_reason === 'vet_failed' ? t('Vet check failed')
     : t('Cancelled by the buyer');
   const isBuyer = e.buyer_id === account.id;
-  const status = e.status === 'locked' ? t('Locked') : e.status === 'released' ? t('Paid to seller') : t('Refunded');
+  const status = e.status === 'locked' ? (accepted ? t('Locked') : t('Waiting for seller'))
+    : e.status === 'released' ? t('Paid to seller') : t('Refunded');
 
   const vet = (passed: boolean) => run(async () => {
     const r = await api.escrowVet(token, e.id, passed);
@@ -211,8 +217,18 @@ function EscrowCard({ e }: { e: Escrow }) {
   });
   const cancel = () => run(async () => {
     const r = await api.escrowCancel(token, e.id);
-    if (r.refund_reason === 'expired') toast.ok(`Escrow #${e.id} had already expired`, `The vet did not report within 14 days, so PC ${money(e.amount)} are back in your wallet.`);
+    if (r.refund_reason === 'expired') toast.ok(`Escrow #${e.id} had already expired`, `The deadline passed, so PC ${money(e.amount)} are back in your wallet.`);
     else toast.ok(`Escrow #${e.id} cancelled`, `PC ${money(e.amount)} are back in your wallet.`);
+  });
+
+  const accept = () => run(async () => {
+    const r = await api.escrowAccept(token, e.id);
+    if (r.refund_reason === 'expired') toast.error(`Escrow #${e.id} has expired`, `You did not accept within 14 days. The contract refunded ${e.buyer_name}.`);
+    else toast.ok(`Escrow #${e.id} accepted`, `${e.vet_name} can now examine the horse and has 14 days to report. ${e.buyer_name} can no longer cancel.`);
+  });
+  const decline = () => run(async () => {
+    await api.escrowDecline(token, e.id);
+    toast.ok(`Escrow #${e.id} declined`, `The contract sent PC ${money(e.amount)} back to ${e.buyer_name}.`);
   });
 
   return (
@@ -227,27 +243,34 @@ function EscrowCard({ e }: { e: Escrow }) {
       <dl className="escrow-parties">
         <div><dt>{t('Buyer')}</dt><dd>{e.buyer_name}</dd></div>
         <div><dt>{t('Seller')}</dt><dd>{e.seller_name}</dd></div>
-        <div><dt>{t('Veterinarian')}</dt><dd>{e.vet_name}</dd></div>
+        <div><dt>{t('Veterinarian')}</dt><dd>{e.vet_name}{e.vet_licence && <small className="licence">{t('Licence')} {e.vet_licence}, {t('verified by Polo Coin')}</small>}</dd></div>
       </dl>
       <p className="escrow-meta muted">
         {e.status === 'locked'
-          ? <>{t('Waiting for the vet check')} · locked {timeAgo(e.created_at)} in contract <code title={e.contract_wallet}>{shortHash(e.contract_wallet)}</code></>
+          ? <>{accepted ? t('Accepted by the seller, waiting for the vet check') : t('Waiting for the seller to accept the escrow and the vet')} · locked {timeAgo(e.created_at)} in contract <code title={e.contract_wallet}>{shortHash(e.contract_wallet)}</code></>
           : <>{outcome} · settled {e.settled_at ? timeAgo(e.settled_at) : ''}
               {e.settle_hash && <> · tx <code title={e.settle_hash}>{shortHash(e.settle_hash)}</code></>}</>}
       </p>
       {e.status === 'locked' && (
         <p className={`escrow-deadline${left <= 3 ? ' soon' : ''}`}>
-          {t('Vet report due by {d} ({n} days left). Without a report, the contract refunds the buyer automatically.',
-            { d: dateShort(e.expires_at, lang), n: String(left) })}
+          {accepted
+            ? t('Vet report due by {d} ({n} days left). Without a report, the contract refunds the buyer automatically.',
+              { d: dateShort(e.expires_at, lang), n: String(left) })
+            : t('The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.',
+              { d: dateShort(e.expires_at, lang), n: String(left) })}
         </p>
       )}
-      {e.status === 'locked' && (isVet || isBuyer) && (
+      {e.status === 'locked' && ((isVet && accepted) || (isBuyer && !accepted) || (isSeller && !accepted)) && (
         <div className="escrow-actions">
-          {isVet && <>
+          {isSeller && !accepted && <>
+            <button className="btn btn-accent btn-small" disabled={busy} onClick={accept}>{t('Accept escrow and vet')}</button>
+            <button className="btn btn-ghost btn-small" disabled={busy} onClick={decline}>{t('Decline')}</button>
+          </>}
+          {isVet && accepted && <>
             <button className="btn btn-accent btn-small" disabled={busy} onClick={() => vet(true)}>{t('Report: passed')}</button>
             <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => vet(false)}>{t('Report: failed')}</button>
           </>}
-          {isBuyer && <button className="btn btn-ghost btn-small" disabled={busy} onClick={cancel}>{t('Cancel and refund')}</button>}
+          {isBuyer && !accepted && <button className="btn btn-ghost btn-small" disabled={busy} onClick={cancel}>{t('Cancel and refund')}</button>}
         </div>
       )}
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -274,7 +297,7 @@ function CreateEscrow() {
     ev.preventDefault();
     run(async () => {
       const e = await api.escrowCreate(token, Number(seller), Number(vet), amt, item);
-      toast.ok(`Escrow #${e.id} created`, `PC ${money(e.amount)} are locked until ${e.vet_name} reports the examination, at the latest for 14 days.`);
+      toast.ok(`Escrow #${e.id} created`, `PC ${money(e.amount)} are locked. Next, ${e.seller_name} accepts the escrow and ${e.vet_name} as vet.`);
       setItem(''); setV('');
     });
   }
@@ -292,11 +315,12 @@ function CreateEscrow() {
       </label>
       <label className="memo"><span>{t('Veterinarian')}</span>
         <select value={vet} onChange={(e) => setVet(Number(e.target.value))}>
-          {vets.map((s) => <option key={s.id} value={s.id}>{s.display_name}, {s.org}</option>)}
+          {vets.map((s) => <option key={s.id} value={s.id}>{[s.display_name, s.org !== '—' ? s.org : null, s.licence_no ? `licence ${s.licence_no}` : null].filter(Boolean).join(', ')}</option>)}
         </select>
+        <small className="muted">{t('Only vets whose licence Polo Coin has checked are listed. Choose one you and the seller trust: the seller has to accept your choice.')}</small>
       </label>
       <AmountInput value={v} onChange={setV} cur="PC" max={account.pc} />
-      <p className="muted small">{t('If the vet does not report within 14 days, the PC come back to you automatically.')}</p>
+      <p className="muted small">{t('If the seller does not accept or the vet does not report within 14 days, the PC come back to you automatically.')}</p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="btn btn-accent btn-wide" disabled={busy || amt <= 0 || item.trim().length < 2}>
         {t('Lock {x} PC in escrow', { x: amt > 0 ? money(amt) : '' })}

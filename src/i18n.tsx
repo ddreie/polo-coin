@@ -78,8 +78,8 @@ const ES: Record<string, string> = {
   'Cancelled by the buyer': 'Cancelado por el comprador',
   'Vet report due by {d} ({n} days left). Without a report, the contract refunds the buyer automatically.':
     'Informe veterinario hasta el {d} (quedan {n} días). Sin informe, el contrato reembolsa al comprador automáticamente.',
-  'If the vet does not report within 14 days, the PC come back to you automatically.':
-    'Si el veterinario no informa en 14 días, los PC vuelven a ti automáticamente.',
+  'If the seller does not accept or the vet does not report within 14 days, the PC come back to you automatically.':
+    'Si el vendedor no acepta o el veterinario no informa en 14 días, los PC vuelven a ti automáticamente.',
   'Report: passed': 'Informar: aprobado', 'Report: failed': 'Informar: no aprobado',
   'Cancel and refund': 'Cancelar y reembolsar',
   'No escrows yet.': 'Todavía no hay escrows.',
@@ -96,8 +96,24 @@ const ES: Record<string, string> = {
   'Lock': 'Bloquear', 'Examine': 'Examinar', 'Settle': 'Liquidar', 'Play': 'Jugar',
   'Buyer’s PC move into the contract wallet': 'Los PC del comprador pasan a la billetera del contrato',
   'The named vet checks the horse': 'El veterinario designado revisa el caballo',
-  'Passed: paid to seller. Failed or no report within 14 days: back to buyer':
-    'Aprobado: se paga al vendedor. No aprobado o sin informe en 14 días: vuelve al comprador',
+  'Buyer locks the price and proposes a verified vet': 'El comprador bloquea el precio y propone un veterinario verificado',
+  'Seller accepts the terms and the vet, or declines': 'El vendedor acepta las condiciones y el veterinario, o rechaza',
+  'The vet checks the horse and reports': 'El veterinario examina el caballo e informa',
+  'Accept': 'Aceptar',
+  'Passed: paid to seller. Failed, declined or no response within 14 days: back to buyer':
+    'Aprobado: se paga al vendedor. No aprobado, rechazado o sin respuesta en 14 días: vuelve al comprador',
+  'Waiting for seller': 'Esperando al vendedor',
+  'Licence': 'Matrícula', 'verified by Polo Coin': 'verificada por Polo Coin',
+  'Accepted by the seller, waiting for the vet check': 'Aceptado por el vendedor, esperando el examen veterinario',
+  'Waiting for the seller to accept the escrow and the vet': 'Esperando que el vendedor acepte el escrow y el veterinario',
+  'Waiting for the seller to accept': 'Esperando que el vendedor acepte',
+  'The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.':
+    'El vendedor tiene hasta el {d} para aceptar (quedan {n} días). Hasta entonces el comprador aún puede cancelar.',
+  'Accept escrow and vet': 'Aceptar escrow y veterinario', 'Accept escrow': 'Aceptar escrow',
+  'Declined by the seller, refunded to the buyer': 'Rechazado por el vendedor, reembolsado al comprador',
+  'Not accepted by the seller within 14 days, refunded to the buyer': 'No aceptado por el vendedor en 14 días, reembolsado al comprador',
+  'Only vets whose licence Polo Coin has checked are listed. Choose one you and the seller trust: the seller has to accept your choice.':
+    'Solo aparecen veterinarios cuya matrícula verificó Polo Coin. Elige uno en quien confíen tú y el vendedor: el vendedor debe aceptar tu elección.',
   'The patron’s bonus moves into the contract': 'El bono del patrón pasa al contrato',
   'The organiser records the result': 'El organizador registra el resultado',
   'Won: paid to the player. Lost: back to the patron': 'Ganado: se paga al jugador. Perdido: vuelve al patrón',

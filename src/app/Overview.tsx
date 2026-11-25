@@ -62,16 +62,22 @@ export default function Overview() {
 
 function Todos() {
   const { account, requests } = useWallet();
-  const { toPay, toExamine, toDecide, waiting, bonusWaiting } = useTodos();
+  const { toPay, toExamine, toAccept, toDecide, waiting, bonusWaiting } = useTodos();
   const { t } = useT();
   const mine = requests.filter((r) => r.status === 'open' && r.requester_id === account.id);
-  const nothing = !toPay.length && !toExamine.length && !toDecide.length && !waiting.length && !bonusWaiting.length && !mine.length;
+  const nothing = !toPay.length && !toExamine.length && !toAccept.length && !toDecide.length && !waiting.length && !bonusWaiting.length && !mine.length;
 
   return (
     <section className="panel todos" aria-labelledby="todo-h">
       <h2 id="todo-h">{t('To do')}</h2>
       {nothing && <p className="muted">{t('Nothing to do right now.')}</p>}
       {toPay.map((r) => <RequestRow key={r.id} r={r} incoming />)}
+      {toAccept.map((e) => (
+        <div key={`a${e.id}`} className="todo">
+          <div><strong>{t('Accept escrow')}: {e.item}</strong><small>Escrow #{e.id}: {e.buyer_name} buys from you, PC {money(e.amount)}, vet {e.vet_name}</small></div>
+          <Link className="btn btn-accent btn-small" to="/app/escrow">{t('Review')}</Link>
+        </div>
+      ))}
       {toExamine.map((e) => (
         <div key={e.id} className="todo">
           <div><strong>Examine {e.item}</strong><small>Escrow #{e.id}: {e.buyer_name} buys from {e.seller_name}, PC {money(e.amount)}</small></div>
@@ -92,7 +98,7 @@ function Todos() {
       ))}
       {waiting.map((e) => (
         <div key={e.id} className="todo todo-quiet">
-          <div><strong>{e.item}</strong><small>Escrow #{e.id}, PC {money(e.amount)} locked · {t('Waiting for the vet check')}</small></div>
+          <div><strong>{e.item}</strong><small>Escrow #{e.id}, PC {money(e.amount)} locked · {e.accepted_at ? t('Waiting for the vet check') : t('Waiting for the seller to accept')}</small></div>
           <Link to="/app/escrow">{t('Escrow')}</Link>
         </div>
       ))}

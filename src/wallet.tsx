@@ -90,9 +90,13 @@ export function useWallet() {
 export function useTodos() {
   const { account, escrows, requests, bonuses } = useWallet();
   const toPay = requests.filter((r) => r.status === 'open' && r.payer_id === account.id);
-  const toExamine = escrows.filter((e) => e.status === 'locked' && e.vet_id === account.id);
+  // The vet can only report once the seller has accepted the escrow and the vet.
+  const toExamine = escrows.filter((e) => e.status === 'locked' && e.accepted_at && e.vet_id === account.id);
+  const toAccept = escrows.filter((e) => e.status === 'locked' && !e.accepted_at && e.seller_id === account.id);
   const toDecide = bonuses.filter((b) => b.status === 'locked' && b.organizer_id === account.id);
-  const waiting = escrows.filter((e) => e.status === 'locked' && (e.buyer_id === account.id || e.seller_id === account.id));
+  const waiting = escrows.filter((e) => e.status === 'locked' && !toAccept.includes(e)
+    && (e.buyer_id === account.id || e.seller_id === account.id));
   const bonusWaiting = bonuses.filter((b) => b.status === 'locked' && (b.patron_id === account.id || b.player_id === account.id));
-  return { toPay, toExamine, toDecide, waiting, bonusWaiting, count: toPay.length + toExamine.length + toDecide.length };
+  return { toPay, toExamine, toAccept, toDecide, waiting, bonusWaiting,
+    count: toPay.length + toExamine.length + toAccept.length + toDecide.length };
 }

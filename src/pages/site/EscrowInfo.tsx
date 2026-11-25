@@ -29,17 +29,18 @@ export default function EscrowInfo() {
       </Section>
 
       <Section tone="cream" title="How the escrow contract works">
-        <ol className="flow-steps">
-          <li><span>1</span><h3>Lock</h3><p>The patron names the horse, the seller and an independent vet, and locks the price. The PC move into the contract’s wallet, visible on the ledger.</p></li>
-          <li><span>2</span><h3>Examine</h3><p>The vet examines the horse and reports “passed” or “failed” in the app. Only the vet named in the contract can do this, and the report is due within 14 days.</p></li>
-          <li><span>3</span><h3>Settle</h3><p>The contract executes on its own: passed means paid to the breeder within seconds, failed means refunded to the patron. Without a report after 14 days the patron gets the money back, so nothing stays locked forever. The patron can cancel while the check is still open.</p></li>
+        <ol className="flow-steps flow-steps-4">
+          <li><span>1</span><h3>Lock</h3><p>The patron names the horse and the seller, proposes a vet from the list of vets verified by Polo Coin, and locks the price. The PC move into the contract’s wallet, visible on the ledger.</p></li>
+          <li><span>2</span><h3>Accept</h3><p>The seller accepts the terms and the proposed vet, or declines and the patron is refunded. From now on the patron can no longer cancel, so both sides are bound.</p></li>
+          <li><span>3</span><h3>Examine</h3><p>The vet examines the horse and reports “passed” or “failed” in the app. Only the vet named in the contract can do this, and the report is due within 14 days.</p></li>
+          <li><span>4</span><h3>Settle</h3><p>The contract executes on its own: passed means paid to the breeder within seconds, failed means refunded to the patron. If the seller does not accept or the vet does not report within 14 days, the patron gets the money back, so nothing stays locked forever.</p></li>
         </ol>
       </Section>
 
       <Section title="Why it can be trusted">
         <div className="grid-3">
           <Card title="Nobody holds the money"><p>Locked PC sit in the contract’s own wallet. Not the buyer, not the seller, not Polo Coin can move them outside the rules.</p></Card>
-          <Card title="A trusted reporter"><p>A smart contract needs someone to report the real-world event. Here it is the vet, a professional both sides already rely on.</p></Card>
+          <Card title="A trusted reporter"><p>A smart contract needs someone to report the real-world event. Here it is the vet. Polo Coin checks every vet once (identity, licence, liability insurance, declaration of independence), and buyer and seller agree on one they both trust.</p></Card>
           <Card title="Fully backed"><p>Locked coins remain part of the supply and are backed 1:1 by the reserve like every other PC.</p></Card>
         </div>
       </Section>

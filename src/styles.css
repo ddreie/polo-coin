@@ -1186,3 +1186,29 @@ input:not([type=radio]) { border-radius: var(--radius-s); }
 /* Escrow deadline (vet report due within 14 days) */
 .escrow-deadline { margin: var(--space-2, 8px) 0 0; padding-left: 10px; border-left: 3px solid var(--forest); font-size: .88rem; }
 .escrow-deadline.soon { border-left-color: var(--orange); }
+
+/* Escrow with seller acceptance: three or four steps in one row */
+.contract-steps { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+@media (max-width: 700px) { .contract-steps { grid-auto-flow: row; } }
+.escrow-parties .licence { display: block; font-weight: 400; font-size: .8rem; color: var(--muted); }
+
+/* Vet sign-up and the treasury's licence check */
+.vet-fields { border: 1px solid var(--line); padding: var(--space-3); display: grid; gap: 12px; }
+.vet-fields legend { padding: 0 6px; font-weight: 700; }
+.vet-fields .check { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: var(--ink, inherit); }
+.vet-fields .check input { margin-top: 3px; }
+.vet-check { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--forest); background: var(--paper); display: grid; gap: 6px; font-size: .88rem; }
+.vet-check dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0; }
+.vet-check dt { color: var(--muted); }
+.vet-check dd { margin: 0; }
+.vet-check label { display: flex; gap: 8px; align-items: flex-start; }
+.vet-check label input { margin-top: 3px; }
+.applicant.is-vet { flex-wrap: wrap; }
+.applicant.is-vet .vet-check { flex-basis: 100%; }
+.flow-steps.flow-steps-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .flow-steps.flow-steps-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .flow-steps.flow-steps-4 { grid-template-columns: 1fr; } }
+/* Checkboxes in the vet sign-up and the licence checklist: box left, text right (overrides the stacked form labels) */
+.vet-fields label.check, .vet-check label { display: flex; flex-direction: row; grid-template-columns: none; align-items: flex-start; gap: 10px; font-weight: 400; text-align: left; }
+.vet-fields label.check input[type=checkbox], .vet-check label input[type=checkbox] { width: 18px; height: 18px; flex: none; margin: 2px 0 0; padding: 0; }
+.vet-fields label.check span, .vet-check label span { flex: 1; }

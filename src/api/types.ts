@@ -12,11 +12,15 @@ export interface Account {
   kyc: Kyc;
   kyc_at?: string | null;
   kyc_by_name?: string | null;
+  /** Vets only: checked by the treasury before the vet can be chosen for an escrow. */
+  licence_no?: string | null;
+  licence_authority?: string | null;
+  insurer?: string | null;
   usd: number;
   pc: number;
 }
 
-export type Party = Pick<Account, 'id' | 'display_name' | 'role' | 'org' | 'country' | 'wallet'>;
+export type Party = Pick<Account, 'id' | 'display_name' | 'role' | 'org' | 'country' | 'wallet'> & { licence_no?: string | null };
 
 /** A sign-up as seen by the treasury or the partner bank in the KYC review. */
 export interface Applicant extends Party {
@@ -25,15 +29,24 @@ export interface Applicant extends Party {
   created_at: string;
   kyc_at: string | null;
   kyc_by_name: string | null;
+  licence_no?: string | null;
+  licence_authority?: string | null;
+  insurer?: string | null;
+  independence_declared_at?: string | null;
 }
 
 export interface SignUp {
   username: string;
   password: string;
   display_name: string;
-  role: 'patron' | 'pro' | 'breeder' | 'groom';
+  role: 'patron' | 'pro' | 'breeder' | 'groom' | 'vet';
   org: string;
   country: string;
+  /** Vets only. */
+  licence_no?: string;
+  licence_authority?: string;
+  insurer?: string;
+  independent?: boolean;
 }
 
 export type TxKind = 'genesis' | 'mint' | 'transfer' | 'redeem' | 'lock' | 'release' | 'refund';
@@ -91,11 +104,14 @@ export interface Escrow {
   status: EscrowStatus;
   vet_passed: boolean | null;
   /** Why a refunded escrow went back to the buyer. */
-  refund_reason: 'vet_failed' | 'cancelled' | 'expired' | null;
+  refund_reason: 'vet_failed' | 'cancelled' | 'declined' | 'expired' | null;
+  /** The seller accepted the escrow and the proposed vet. Before that the vet cannot report. */
+  accepted_at: string | null;
+  vet_licence: string | null;
   buyer_id: number; seller_id: number; vet_id: number;
   buyer_name: string; seller_name: string; vet_name: string;
   created_at: string;
-  /** Without a vet report by then, the contract refunds the buyer (14 days after locking). */
+  /** Seller acceptance due by then (14 days after locking), after acceptance the vet report (14 days after accepting). */
   expires_at: string;
   settled_at: string | null;
   lock_hash: string | null;
@@ -170,6 +186,9 @@ export interface Api {
   escrowCreate(token: string, seller: number, vet: number, amount: number, item: string): Promise<Escrow>;
   escrowVet(token: string, escrow: number, passed: boolean): Promise<Escrow>;
   escrowCancel(token: string, escrow: number): Promise<Escrow>;
+  /** The seller accepts the escrow and the proposed vet, or declines it (refund to the buyer). */
+  escrowAccept(token: string, escrow: number): Promise<Escrow>;
+  escrowDecline(token: string, escrow: number): Promise<Escrow>;
   /** Payment requests: a payee asks, the payer pays with one click. */
   requests(token: string): Promise<PayRequest[]>;
   requestCreate(token: string, payer: number, amount: number, memo: string): Promise<PayRequest>;

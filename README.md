@@ -17,7 +17,7 @@ Passwort für alle: `polo2026`. Am einfachsten startet man die **geführte Demo-
 | `bank` | Banco Pampa Sur | Partnerbank, AR | sieht alle Transaktionen, prüft KYC aus Argentinien |
 | `admin` | Polo Coin Treasury | Emittent, CH | Reserve, Erträge, KYC; kann die Demo zurücksetzen |
 
-Zusätzlich gibt es zwei offene Anmeldungen für die KYC-Prüfung: `charlotte` (Patronin, USA) und `valentina` (Spielerin, AR), ebenfalls mit `polo2026`. Das Escrow-Konto (`escrow`, Smart Contract) hat eine Wallet, man kann sich aber nicht einloggen.
+Zusätzlich gibt es zwei offene Anmeldungen für die KYC-Prüfung: `charlotte` (Patronin, USA), `valentina` (Spielerin, AR) und der Tierarzt `tomas` (Dr. Tomás Iriarte, AR), ebenfalls mit `polo2026`. Tierärzte registrieren sich mit Lizenznummer, ausstellender Stelle, Haftpflichtversicherung und Unabhängigkeitserklärung. Nur die Treasury (`admin`) prüft sie, mit einer Checkliste aus vier Punkten. Das Escrow-Konto (`escrow`, Smart Contract) hat eine Wallet, man kann sich aber nicht einloggen.
 
 In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) umstellen; Konten aus Argentinien starten auf Spanisch. Unter «Pay → Receive» erzeugt man einen QR-Code mit Zahlungslink, unter «Activity» lädt man zu jeder Transaktion eine PDF-Quittung herunter.
 
@@ -28,7 +28,7 @@ In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) um
 | Kauf (Mint) | USD vom Bankkonto in die Reserve, gleich viel PC wird ausgegeben | 1% zusätzlich in USD, 50% an Treasury, 50% an Partnerbank |
 | Transfer | PC von Wallet zu Wallet, sofort | keine |
 | Zahlungsanforderung | Spieler/Breeder/Tierärztin fordert Betrag an, Zahler bezahlt per Klick (normaler Transfer) | keine |
-| Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Käufer kann vorher abbrechen; ohne Meldung innert 14 Tagen geht das Geld automatisch zurück an den Käufer | keine |
+| Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Verkäufer muss den Escrow inkl. Tierärztin zuerst akzeptieren (oder ablehnen → Rückerstattung); der Käufer kann nur vor der Annahme abbrechen; ohne Annahme bzw. ohne Meldung innert je 14 Tagen geht das Geld automatisch zurück an den Käufer | keine |
 | Win-Bonus | PC des Patrons gehen in die Contract-Wallet; der genannte Turnierveranstalter trägt «gewonnen» (→ an Spieler) oder «verloren» (→ zurück an Patron) ein; der Patron kann vorher abbrechen | keine |
 | Dauerauftrag | wöchentliche oder monatliche Zahlung; erste Rate sofort, fällige Raten werden ausgeführt, sobald die Wallet des Zahlers offen ist; «Pay next now» zahlt die nächste Rate sofort | keine |
 | Auszahlung (Burn) | PC wird vernichtet, USD aus der Reserve aufs Bankkonto | keine |

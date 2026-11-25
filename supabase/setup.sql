@@ -24,8 +24,12 @@
 --   * Escrow (smart contract): a buyer locks PC for a horse; the named vet
 --     confirms the pre-purchase examination; the contract then releases the
 --     PC to the seller automatically, or refunds the buyer if the horse fails.
---     Deadline: without a vet report within 14 days (config.escrow_days) the
---     contract refunds the buyer. Like on a real blockchain, a contract does
+--     The buyer proposes a verified vet, the seller must accept the escrow
+--     (including the vet) before the vet can report. Declined = refunded.
+--     After acceptance the buyer can no longer cancel.
+--     Deadlines (config.escrow_days = 14): the seller must accept within 14
+--     days of locking, the vet must report within 14 days of acceptance,
+--     otherwise the contract refunds the buyer. Like on a real blockchain, a contract does
 --     not wake up by itself: the refund runs at the next call that touches
 --     escrows after the deadline (polo.op_escrow_expire_due).
 --     Locked PC sit in the wallet of the escrow contract and stay in supply.
@@ -38,6 +42,9 @@
 --     executed when due (whenever the payer's wallet is open) or on demand.
 --   * Reserve: at least 30 % held as USD deposits (MiCA Art. 54), the rest in
 --     US Treasury bills (up to 93 days); assumed yield 4.2 % p.a.
+--   * Vets sign up with licence number, licensing authority, liability
+--     insurer and a declaration of independence. Only the treasury verifies
+--     vets, because a vet's report decides where escrow money goes.
 --   * KYC: new users sign up with status 'pending'. They can log in but
 --     cannot buy, send, receive or cash out until the treasury (any
 --     applicant) or the partner bank (applicants from Argentina) verifies
@@ -65,6 +72,11 @@ create table polo.accounts (
   kyc           text not null default 'pending' check (kyc in ('pending','verified','rejected')),
   kyc_by        int references polo.accounts(id),      -- who verified or rejected the applicant
   kyc_at        timestamptz,
+  -- Vets only: checked by the treasury before the vet can be chosen for an escrow.
+  licence_no        text,
+  licence_authority text,
+  insurer           text,
+  independence_declared_at timestamptz,
   created_at    timestamptz not null default now(),
   usd           numeric(14,2) not null default 0 check (usd >= 0),
   pc            numeric(14,2) not null default 0 check (pc >= 0)
@@ -114,9 +126,10 @@ create table polo.escrows (
   item         text not null,                       -- e.g. the horse being bought
   status       text not null default 'locked' check (status in ('locked','released','refunded')),
   vet_passed   boolean,
-  refund_reason text check (refund_reason in ('vet_failed','cancelled','expired')),
+  refund_reason text check (refund_reason in ('vet_failed','cancelled','declined','expired')),
   created_at   timestamptz not null default now(),
-  expires_at   timestamptz not null,                -- no vet report by then: refunded to the buyer
+  accepted_at  timestamptz,                         -- seller accepted the escrow and the vet
+  expires_at   timestamptz not null,                -- seller acceptance, then vet report due by then
   settled_at   timestamptz,
   lock_block   bigint references polo.ledger(block),
   settle_block bigint references polo.ledger(block)
@@ -255,6 +268,7 @@ language sql stable set search_path = '' as $$
     'role', a.role, 'org', a.org, 'country', a.country, 'wallet', a.wallet,
     'kyc', a.kyc, 'kyc_at', a.kyc_at,
     'kyc_by_name', (select display_name from polo.accounts where id = a.kyc_by),
+    'licence_no', a.licence_no, 'licence_authority', a.licence_authority, 'insurer', a.insurer,
     'usd', a.usd, 'pc', a.pc)
 $$;
 
@@ -278,7 +292,8 @@ language sql stable set search_path = '' as $$
     'buyer_name',  (select display_name from polo.accounts where id = e.buyer_id),
     'seller_name', (select display_name from polo.accounts where id = e.seller_id),
     'vet_name',    (select display_name from polo.accounts where id = e.vet_id),
-    'refund_reason', e.refund_reason,
+    'refund_reason', e.refund_reason, 'accepted_at', e.accepted_at,
+    'vet_licence', (select licence_no from polo.accounts where id = e.vet_id),
     'created_at', e.created_at, 'expires_at', e.expires_at, 'settled_at', e.settled_at,
     'lock_hash',   (select tx_hash from polo.ledger where block = e.lock_block),
     'settle_hash', (select tx_hash from polo.ledger where block = e.settle_block),
@@ -441,6 +456,9 @@ begin
   t := polo.append(case when p_release then 'release' else 'refund' end, v_contract, v_to, e.amount, 0,
                    'Escrow #' || e.id || case when p_release then ': vet check passed, paid to seller'
                                           when p_reason = 'vet_failed' then ': vet check failed, refunded'
+                                          when p_reason = 'declined' then ': declined by seller, refunded'
+                                          when p_reason = 'expired' and e.accepted_at is null then ': not accepted by seller within '
+                                               || (select escrow_days from polo.config) || ' days, refunded'
                                           when p_reason = 'expired' then ': no vet report within '
                                                || (select escrow_days from polo.config) || ' days, refunded'
                                           else ': cancelled by buyer, refunded' end);
@@ -461,6 +479,23 @@ begin
     n := n + 1;
   end loop;
   return n;
+end $$;
+
+-- Escrow: the seller accepts the terms and the proposed vet. From now on the vet has 14 days to report,
+-- and the buyer can no longer cancel.
+create function polo.op_escrow_accept(p_escrow int, p_seller int) returns polo.escrows
+language plpgsql set search_path = '' as $$
+declare e polo.escrows;
+begin
+  select * into e from polo.escrows where id = p_escrow for update;
+  if e.id is null then raise exception 'Escrow not found.'; end if;
+  if e.seller_id <> p_seller then raise exception 'Only the seller named in escrow #% can accept it.', e.id; end if;
+  if e.status <> 'locked' then raise exception 'Escrow #% is already %.', e.id, e.status; end if;
+  if e.accepted_at is not null then raise exception 'You have already accepted escrow #%.', e.id; end if;
+  update polo.escrows set accepted_at = now(),
+         expires_at = now() + make_interval(days => (select escrow_days from polo.config))
+   where id = e.id returning * into e;
+  return e;
 end $$;
 
 -- Win bonus: the patron locks the bonus in the contract wallet.
@@ -550,10 +585,19 @@ begin
     -- The escrow smart contract holds locked PC. It has a wallet but nobody can log in to it.
     ('escrow', extensions.crypt(gen_random_uuid()::text, extensions.gen_salt('bf')), 'Polo Coin Escrow Contract', 'contract',
                'Smart contract', 'Switzerland', polo.wallet_of('escrow-contract'), 0, 0, 'verified');
-  -- Two open sign-up applications, so the KYC review can be shown right away.
+  update polo.accounts set licence_no = 'MP 3307 (fictional)', licence_authority = 'Provincial veterinary register, Buenos Aires',
+         insurer = 'Seguros del Plata (fictional)', independence_declared_at = now() - interval '200 days',
+         kyc_by = (select id from polo.accounts where username = 'admin'), kyc_at = now() - interval '199 days'
+   where username = 'vet';
+  -- Open sign-up applications, so the KYC review can be shown right away (one of them a vet).
   insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc, created_at) values
     ('charlotte', v_pw, 'Charlotte Hayes',   'patron', 'Team Hollow Creek',   'United States', polo.wallet_of('charlotte'), 100000, 0, 'pending', now() - interval '2 hours'),
     ('valentina', v_pw, 'Valentina Arrieta', 'pro',    '4-goal professional', 'Argentina',     polo.wallet_of('valentina'),      0, 0, 'pending', now() - interval '25 minutes');
+  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, kyc, created_at,
+                             licence_no, licence_authority, insurer, independence_declared_at) values
+    ('tomas', v_pw, 'Dr. Tomás Iriarte', 'vet', 'Equine clinic, Cañuelas (fictional)', 'Argentina', polo.wallet_of('tomas'),
+     'pending', now() - interval '50 minutes', 'MP 5172 (fictional)', 'Provincial veterinary register, Buenos Aires',
+     'Seguros del Plata (fictional)', now() - interval '50 minutes');
   perform polo.append('genesis', null, null, 0, 0, 'Polo Coin genesis block');
 
   -- Starting history: the patron has used Polo Coin before the demo begins.
@@ -567,6 +611,7 @@ begin
   perform polo.op_transfer(v_patron, v_pro, 12000, 'Tournament fee, Snow Polo St. Moritz');
   perform polo.op_redeem(v_pro, 4000);
   v_e := polo.op_escrow_lock(v_patron, v_breeder, v_vet, 18000, 'Mare "La Bonita", 7 years');
+  perform polo.op_escrow_accept(v_e.id, v_breeder);   -- accepted, waiting for the vet
   v_b := polo.op_bonus_lock(v_patron, v_pro, v_org, 3000, 'Final, Alpine Polo Cup');
   -- The groom's monthly wages: paid once already, next instalment due in a month.
   insert into polo.standing (payer_id, payee_id, amount, memo, every, next_due)
@@ -612,7 +657,7 @@ language plpgsql security definer set search_path = '' as $$
 begin
   perform polo.auth(p_token);
   return (select coalesce(json_agg(json_build_object('id', id, 'display_name', display_name,
-            'role', role, 'org', org, 'country', country, 'wallet', wallet) order by id), '[]')
+            'role', role, 'org', org, 'country', country, 'wallet', wallet, 'licence_no', licence_no) order by id), '[]')
           from polo.accounts where kyc = 'verified' and role <> 'contract');
 end $$;
 
@@ -655,6 +700,9 @@ begin
   perform polo.op_escrow_expire_due();
   select * into e from polo.escrows where id = p_escrow;
   if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  if e.status = 'locked' and e.accepted_at is null then
+    raise exception 'The seller has not accepted escrow #% yet. You can report once the seller has accepted you as vet.', e.id;
+  end if;
   return polo.escrow_json(polo.op_escrow_settle(e.id, p_passed, p_passed, case when p_passed then null else 'vet_failed' end));
 end $$;
 
@@ -669,7 +717,37 @@ begin
   perform polo.op_escrow_expire_due();
   select * into e from polo.escrows where id = p_escrow;
   if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  if e.status = 'locked' and e.accepted_at is not null then
+    raise exception 'The seller has accepted escrow #%, so it can no longer be cancelled. It settles with the vet''s report, or refunds you if there is none within % days.',
+      e.id, (select escrow_days from polo.config);
+  end if;
   return polo.escrow_json(polo.op_escrow_settle(e.id, false, null, 'cancelled'));
+end $$;
+
+-- The seller accepts the escrow and the proposed vet, or declines it (the PC go back to the buyer).
+create or replace function public.api_escrow_accept(p_token uuid, p_escrow int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); e polo.escrows;
+begin
+  perform polo.op_escrow_expire_due();
+  select * into e from polo.escrows where id = p_escrow;
+  if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  return polo.escrow_json(polo.op_escrow_accept(p_escrow, v_id));
+end $$;
+
+create or replace function public.api_escrow_decline(p_token uuid, p_escrow int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); e polo.escrows;
+begin
+  perform polo.op_escrow_expire_due();
+  select * into e from polo.escrows where id = p_escrow;
+  if e.id is null then raise exception 'Escrow not found.'; end if;
+  if e.seller_id <> v_id then raise exception 'Only the seller named in escrow #% can decline it.', e.id; end if;
+  if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  if e.status = 'locked' and e.accepted_at is not null then
+    raise exception 'You have already accepted escrow #%. It now settles with the vet''s report.', e.id;
+  end if;
+  return polo.escrow_json(polo.op_escrow_settle(e.id, false, null, 'declined'));
 end $$;
 
 -- Escrows the caller is part of; treasury and partner bank see all.
@@ -903,8 +981,11 @@ $$;
 
 -- Open a new account. It starts with KYC 'pending' and is logged in right away.
 -- New patrons get a simulated bank account with USD 100,000 to buy PC with.
+-- Vets also give licence number, licensing authority, liability insurer and declare their independence.
 create or replace function public.api_register(p_username text, p_password text, p_display_name text,
-                                               p_role text, p_org text, p_country text) returns json
+                                               p_role text, p_org text, p_country text,
+                                               p_licence_no text default null, p_licence_authority text default null,
+                                               p_insurer text default null, p_independent boolean default false) returns json
 language plpgsql security definer set search_path = '' as $$
 declare v_user text := lower(trim(p_username)); v_name text := trim(p_display_name);
         v_org text := coalesce(nullif(trim(p_org), ''), '—'); v_country text := trim(p_country);
@@ -919,8 +1000,22 @@ begin
   if length(coalesce(v_name, '')) < 2 or length(v_name) > 60 then
     raise exception 'Please enter your full name (max. 60 characters).';
   end if;
-  if p_role not in ('patron','pro','breeder','groom') then
-    raise exception 'Choose patron, professional player, breeder or groom.';
+  if p_role not in ('patron','pro','breeder','groom','vet') then
+    raise exception 'Choose patron, professional player, breeder, groom or veterinarian.';
+  end if;
+  if p_role = 'vet' then
+    if length(coalesce(trim(p_licence_no), '')) < 3 or length(p_licence_no) > 30 then
+      raise exception 'Vets: please enter your licence number (3 to 30 characters).';
+    end if;
+    if length(coalesce(trim(p_licence_authority), '')) < 3 or length(p_licence_authority) > 80 then
+      raise exception 'Vets: please name the register or authority that issued your licence.';
+    end if;
+    if length(coalesce(trim(p_insurer), '')) < 2 or length(p_insurer) > 60 then
+      raise exception 'Vets: please name your professional liability insurer.';
+    end if;
+    if p_independent is not true then
+      raise exception 'Vets: please confirm the declaration of independence.';
+    end if;
   end if;
   if length(coalesce(v_country, '')) < 2 or length(v_country) > 40 or length(v_org) > 60 then
     raise exception 'Please enter a country (and an organisation of max. 60 characters).';
@@ -931,20 +1026,25 @@ begin
   if (select count(*) from polo.accounts) >= 200 then
     raise exception 'Demo limit reached. Ask the treasury to reset the demo.';
   end if;
-  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc)
+  insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc,
+                             licence_no, licence_authority, insurer, independence_declared_at)
   values (v_user, extensions.crypt(p_password, extensions.gen_salt('bf')), v_name, p_role, v_org, v_country,
           polo.wallet_of(v_user || ':' || gen_random_uuid()::text),
-          case when p_role = 'patron' then 100000 else 0 end, 0, 'pending')
+          case when p_role = 'patron' then 100000 else 0 end, 0, 'pending',
+          case when p_role = 'vet' then trim(p_licence_no) end, case when p_role = 'vet' then trim(p_licence_authority) end,
+          case when p_role = 'vet' then trim(p_insurer) end, case when p_role = 'vet' then now() end)
   returning * into a;
   insert into polo.sessions (account_id) values (a.id) returning token into v_token;
   return json_build_object('token', v_token, 'account', polo.account_json(a));
 end $$;
 
 -- Who may review whom: the treasury reviews everyone, the partner bank reviews applicants from Argentina.
+-- Vets are reviewed by the treasury only: their licence check is the issuer's responsibility.
 create function polo.can_review(p_reviewer polo.accounts, p_applicant polo.accounts) returns boolean
 language sql stable set search_path = '' as $$
-  select p_applicant.role not in ('bank','admin','vet','organizer','contract')
-     and (p_reviewer.role = 'admin' or (p_reviewer.role = 'bank' and p_applicant.country = 'Argentina'))
+  select p_applicant.role not in ('bank','admin','organizer','contract')
+     and (p_reviewer.role = 'admin'
+          or (p_reviewer.role = 'bank' and p_applicant.country = 'Argentina' and p_applicant.role <> 'vet'))
 $$;
 
 -- Open applications plus the latest decisions, for treasury and partner bank.
@@ -960,6 +1060,8 @@ begin
             'id', a.id, 'username', a.username, 'display_name', a.display_name, 'role', a.role,
             'org', a.org, 'country', a.country, 'wallet', a.wallet, 'kyc', a.kyc,
             'created_at', a.created_at, 'kyc_at', a.kyc_at,
+            'licence_no', a.licence_no, 'licence_authority', a.licence_authority, 'insurer', a.insurer,
+            'independence_declared_at', a.independence_declared_at,
             'kyc_by_name', (select display_name from polo.accounts where id = a.kyc_by))
           order by (a.kyc = 'pending') desc, coalesce(a.kyc_at, a.created_at) desc), '[]')
           from (select * from polo.accounts a
@@ -978,7 +1080,7 @@ begin
   select * into a from polo.accounts where id = p_account for update;
   if a.id is null then raise exception 'Applicant not found.'; end if;
   if not polo.can_review(r, a) then
-    raise exception 'You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone.';
+    raise exception 'You may not review this applicant. The partner bank reviews applicants from Argentina, the treasury reviews everyone and alone checks vets.';
   end if;
   if a.kyc <> 'pending' then
     raise exception '% has already been %.', a.display_name, a.kyc;
