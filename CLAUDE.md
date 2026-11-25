@@ -27,8 +27,12 @@ Vets sign up with licence number, licensing authority, liability insurer and a d
 treasury (`admin`) verifies them, never the partner bank. Each vet's public track record (`polo.vet_stats`: reports, passed/failed,
 missed deadlines, value examined) is shown when choosing or accepting a vet. Win bonus: the patron locks PC for a player; the named
 organiser (role `organizer`) records won/lost and the contract pays or refunds. Standing orders pay weekly/monthly;
-due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Invariant: USD reserve = PC in
-circulation (incl. PC locked in contracts).
+due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Transaction monitoring (`polo.aml_check`, inside `polo.op_transfer`): a transfer is held in the compliance wallet
+(username `compliance`, role `contract`) only if it is unusually large (> 50,000 and > 3x the sender's largest earlier
+payment), a pass-through (forwards >= 80% of what came in from others in 24 h, from 10,000) or split payments (several to
+one recipient in 24 h, together > 50,000). The partner bank or treasury releases or returns it (`api_hold_decide`); only
+the treasury freezes wallets (`api_freeze`). Senders never see which rule fired (no tipping-off).
+Invariant: USD reserve = PC in circulation (incl. PC locked in contracts and held for review).
 Business logic lives in `polo.op_*` (SQL) and the `op*` functions in `localApi.ts`; the seed uses them too.
 Demo accounts: `patron`, `pro`, `breeder`, `groom`, `vet`, `organizer`, `bank`, `admin`, password `polo2026` (all fictional).
 

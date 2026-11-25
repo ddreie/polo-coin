@@ -360,7 +360,7 @@ input:not([type=radio]):focus { outline: 2px solid var(--celeste); outline-offse
 .kyc-steps span { font-size: .86rem; color: var(--muted); }
 
 .kyc-review { margin-bottom: 20px; }
-.kyc-review .count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 10px; border-radius: var(--radius-pill); background: var(--brass); color: var(--turf-deep); font-size: .82rem; font-weight: 800; vertical-align: 3px; box-sizing: border-box; }
+.kyc-review .count, .monitoring .count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; margin-left: 10px; border-radius: var(--radius-pill); background: var(--brass); color: var(--turf-deep); font-size: .82rem; font-weight: 800; vertical-align: 3px; box-sizing: border-box; }
 .kyc-scope { font-size: .92rem; margin-top: 0; }
 .applicants { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
 .applicant { display: flex; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: var(--radius-m); padding: 10px 14px; }
@@ -1226,3 +1226,18 @@ input:not([type=radio]) { border-radius: var(--radius-s); }
 .vet-note { margin: 0; font-size: .76rem; color: var(--muted); }
 .escrow-create .vet-stats { grid-template-columns: 1fr 1fr; }
 .escrow-create .vet-stats > div:last-child { grid-column: 1 / -1; }
+
+/* Transaction monitoring (review page) */
+.monitoring { margin-bottom: 20px; }
+.aml-rules { margin: 0 0 14px; padding-left: 18px; font-size: .88rem; color: var(--muted); display: grid; gap: 3px; }
+.aml-rules strong { color: inherit; font-weight: 700; }
+.applicant.hold .badge { justify-self: start; margin-bottom: 4px; }
+.applicant.hold .applicant-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 330px; }
+.frozen { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+.frozen h3 { font-size: 1rem; margin: 0 0 8px; }
+.frozen ul { list-style: none; padding: 0; margin: 0 0 12px; }
+.frozen li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.frozen li small { display: block; color: var(--muted); font-size: .8rem; }
+.freeze-form { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr auto; gap: 8px; align-items: center; }
+.freeze-form select, .freeze-form input { min-width: 0; }
+@media (max-width: 700px) { .freeze-form { grid-template-columns: 1fr; } .applicant.hold .applicant-actions { max-width: none; } }

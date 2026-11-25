@@ -26,6 +26,8 @@ const FAQ: { group: string; items: [string, ReactNode][] }[] = [
       <>No. You use an app like any banking app. There are no keys to manage and no exchanges to use. Patrons are onboarded personally, players and breeders use the app in Spanish.</>],
     ['What does it cost?',
       <>1% when you buy Polo Coin, including the currency conversion. Payments, payment requests, standing orders, escrow and cash-out are free. During the pilot even the purchase fee is waived.</>],
+    ['Can a payment be held?',
+      <>Rarely. Every payment is screened automatically, and only unusual patterns are held for a short compliance check by the partner bank, for example a payment far larger than anything the wallet has paid before. Normal payments settle in seconds. <Link to="/security">How monitoring works</Link>.</>],
     ['Can I receive pesos?',
       <>You cash out in US dollars at the partner in Argentina. Converting them into pesos is possible as with any dollar account and costs about the same with any provider, subject to Argentine foreign exchange rules.</>],
     ['What happens if the horse fails the vet check?',

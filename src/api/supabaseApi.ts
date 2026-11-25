@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Account, Api, Applicant, Bonus, Escrow, Party, PayRequest, StandingOrder, Stats, Tx } from './types';
+import type { Account, Api, Applicant, Bonus, Escrow, FrozenWallet, Hold, Party, PayRequest, StandingOrder, Stats, Tx } from './types';
 
 /** Calls the api_* Postgres functions defined in supabase/setup.sql. */
 export function createSupabaseApi(url: string, key: string): Api {
@@ -41,6 +41,11 @@ export function createSupabaseApi(url: string, key: string): Api {
     escrowCancel: (t, id) => rpc<Escrow>('api_escrow_cancel', { p_token: t, p_escrow: id }).then(num),
     escrowAccept: (t, id) => rpc<Escrow>('api_escrow_accept', { p_token: t, p_escrow: id }).then(num),
     escrowDecline: (t, id) => rpc<Escrow>('api_escrow_decline', { p_token: t, p_escrow: id }).then(num),
+    holds: (t) => rpc<Hold[]>('api_holds', { p_token: t }).then((l) => l.map(num)),
+    holdDecide: (t, id, release, freeze = false) => rpc<Hold>('api_hold_decide', { p_token: t, p_hold: id, p_release: release, p_freeze: freeze }).then(num),
+    freeze: (t, id, reason) => rpc<Account>('api_freeze', { p_token: t, p_account: id, p_reason: reason }).then(num),
+    unfreeze: (t, id) => rpc<Account>('api_unfreeze', { p_token: t, p_account: id }).then(num),
+    frozen: (t) => rpc<FrozenWallet[]>('api_frozen', { p_token: t }).then((l) => l.map(num)),
     requests: (t) => rpc<PayRequest[]>('api_requests', { p_token: t }).then((r) => r.map(num)),
     requestCreate: (t, payer, amount, memo) =>
       rpc<PayRequest>('api_request_create', { p_token: t, p_payer: payer, p_amount: amount, p_memo: memo }).then(num),

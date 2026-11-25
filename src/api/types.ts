@@ -16,6 +16,8 @@ export interface Account {
   licence_no?: string | null;
   licence_authority?: string | null;
   insurer?: string | null;
+  /** Set when the treasury has frozen the wallet after suspicious activity. */
+  frozen_at?: string | null;
   usd: number;
   pc: number;
 }
@@ -94,6 +96,9 @@ export interface Stats {
   redeemed_pc: number;
   /** PC currently locked in the escrow contract (part of supply). */
   escrow_pc: number;
+  /** PC of transfers held by transaction monitoring (part of supply). */
+  held_pc?: number;
+  holds_open?: number;
   escrows_open: number;
   escrows_done: number;
   bonuses_open: number;
@@ -174,6 +179,36 @@ export interface PayRequest {
   created_at: string;
   settled_at: string | null;
   tx_hash: string | null;
+  /** Paid, but the transfer was held by transaction monitoring. */
+  held?: boolean;
+}
+
+export type HoldRule = 'large' | 'passthrough' | 'split';
+/** A transfer held by transaction monitoring until the partner bank or the treasury reviews it. */
+export interface Hold {
+  id: number;
+  amount: number;
+  memo: string | null;
+  status: 'held' | 'released' | 'returned';
+  from_id: number; to_id: number;
+  from_name: string; to_name: string;
+  /** Reviewers only: senders are not told why (no tipping-off). */
+  rule: HoldRule | null;
+  reason: string | null;
+  sender_frozen: boolean;
+  from_frozen: boolean;
+  from_since: string;
+  from_payments: number;
+  created_at: string;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  lock_hash: string | null;
+  settle_hash: string | null;
+}
+
+export interface FrozenWallet {
+  id: number; display_name: string; role: Role; country: string; pc: number;
+  frozen_at: string; frozen_reason: string; frozen_by_name: string | null;
 }
 
 /** Everything the website needs from the backend. Two implementations: Supabase and in-browser. */
@@ -202,6 +237,12 @@ export interface Api {
   /** The seller accepts the escrow and the proposed vet, or declines it (refund to the buyer). */
   escrowAccept(token: string, escrow: number): Promise<Escrow>;
   escrowDecline(token: string, escrow: number): Promise<Escrow>;
+  /** Transaction monitoring: held payments, review, frozen wallets. */
+  holds(token: string): Promise<Hold[]>;
+  holdDecide(token: string, hold: number, release: boolean, freeze?: boolean): Promise<Hold>;
+  freeze(token: string, account: number, reason: string): Promise<Account>;
+  unfreeze(token: string, account: number): Promise<Account>;
+  frozen(token: string): Promise<FrozenWallet[]>;
   /** Payment requests: a payee asks, the payer pays with one click. */
   requests(token: string): Promise<PayRequest[]>;
   requestCreate(token: string, payer: number, amount: number, memo: string): Promise<PayRequest>;

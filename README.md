@@ -39,6 +39,10 @@ Reserve: 30% als USD-Einlagen (MiCA Art. 54), 70% in T-Bills (≤ 93 Tage, GENIU
 
 Neue Nutzer können sich über „Open an account“ selbst registrieren (Patron, Spieler oder Breeder). Das Konto ist danach „pending“: Man kann sich einloggen, aber weder kaufen, senden, empfangen noch auszahlen. Die Treasury (`admin`) prüft alle Anmeldungen, die Partnerbank (`bank`) die Anmeldungen aus Argentinien. Beide sehen dazu in der Wallet unter „Review“ die Liste „Identity checks (KYC)“ mit „Verify“ und „Reject“. Damit zeigt der Prototyp, dass es keine anonymen Wallets gibt (FINMA-Aufsichtsmitteilung 06/2024: der Emittent muss alle Halter identifizieren). Neue Patrons starten mit einem simulierten Bankkonto von USD 100'000. Ein Reset der Demo löscht alle selbst registrierten Konten.
 
+## Transaktionsüberwachung (Geldwäscherei)
+
+Normale Zahlungen gehen weiterhin in Sekunden durch. Nur auffällige Überweisungen werden für eine kurze Prüfung zurückgehalten: ungewöhnlich gross (über 50'000 und mehr als das Dreifache der bisher grössten Zahlung), Durchleitung (mindestens 80% dessen, was in 24 Stunden von anderen eingegangen ist, wird weitergeschickt, ab 10'000) oder gestückelte Zahlungen (mehrere an dieselbe Person in 24 Stunden, zusammen über 50'000). Das Geld liegt dann sichtbar in der «Compliance Hold»-Wallet. Die Partnerbank oder die Treasury gibt es unter «Review» frei oder schickt es zurück. Nur die Treasury kann Wallets einfrieren. Der Absender sieht nur «routine compliance check», nicht den Grund. In den Startdaten ist eine Zahlung von 80'000 des Patrons an den Züchter zurückgehalten.
+
 Invariante: USD-Reserve = PC im Umlauf (100% Deckung). Jede Transaktion ist ein Block mit SHA-256-Hash, der den Hash des vorherigen Blocks enthält (Hash-Kette wie bei einer Blockchain).
 
 ## Architektur

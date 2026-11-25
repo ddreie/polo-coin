@@ -22,7 +22,7 @@ export interface TourStep {
   text: string;
 }
 
-/** The guided demo: the whole business case in nine steps, switching roles with one click. */
+/** The guided demo: the whole business case in ten steps, switching roles with one click. */
 export const TOUR: TourStep[] = [
   { as: 'patron', path: '/app/pay?tab=buy', title: 'Buy Polo Coin',
     text: 'James buys PC with US dollars from his bank account. He pays a single 1% fee on top, and the dollars go into the reserve.' },
@@ -40,6 +40,8 @@ export const TOUR: TourStep[] = [
     text: 'The tournament organiser records the result of the final. The win bonus contract pays Facundo at once.' },
   { as: 'breeder', path: '/app/pay?tab=redeem', title: 'Cash out in US dollars',
     text: 'The breeder exchanges PC for USD at the partner bank, 1:1 and free. The PC are destroyed.' },
+  { as: 'bank', path: '/app/review', title: 'A payment is held for review',
+    text: 'Transaction monitoring held a PC 80,000 payment that is far above anything James paid before. The partner bank checks it and releases it, or returns it to the sender.' },
   { as: null, path: '/transparency', title: 'Check the proof of reserves',
     text: 'Anyone can see that the USD reserve equals the PC in circulation, and verify every block of the ledger.' },
 ];

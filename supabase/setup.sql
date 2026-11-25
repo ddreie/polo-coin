@@ -45,6 +45,17 @@
 --   * Vets sign up with licence number, licensing authority, liability
 --     insurer and a declaration of independence. Only the treasury verifies
 --     vets, because a vet's report decides where escrow money goes.
+--   * Transaction monitoring (anti-money laundering), risk-based so normal
+--     payments still settle in seconds. A transfer is held for review only if
+--       1. it is above USD 50,000 and more than 3x the sender's largest
+--          earlier payment ("unusually large"),
+--       2. the sender forwards >= 80% of what it received from others in the
+--          last 24 hours, from USD 10,000 ("pass-through", money mule), or
+--       3. several payments to the same recipient within 24 hours add up to
+--          more than USD 50,000 ("split payments", structuring).
+--     Held PC sit in the compliance hold wallet (visible on the ledger). The
+--     partner bank or the treasury releases them or returns them. The
+--     treasury can freeze a wallet: no sending, receiving or cash-out.
 --   * Vet track record (polo.vet_stats): examinations reported (passed /
 --     failed), missed deadlines, value examined and verified-since date,
 --     shown to buyers and sellers when they choose or accept a vet.
@@ -80,6 +91,10 @@ create table polo.accounts (
   licence_authority text,
   insurer           text,
   independence_declared_at timestamptz,
+  -- Frozen by the treasury after suspicious activity: no sending, receiving or cash-out.
+  frozen_at     timestamptz,
+  frozen_by     int references polo.accounts(id),
+  frozen_reason text,
   created_at    timestamptz not null default now(),
   usd           numeric(14,2) not null default 0 check (usd >= 0),
   pc            numeric(14,2) not null default 0 check (pc >= 0)
@@ -117,7 +132,11 @@ create table polo.config (
   bank_share    numeric not null default 0.5,    -- share of the fee for the partner bank
   reserve_yield numeric not null default 0.042,  -- yield on 3-month US Treasury bills
   cash_share    numeric not null default 0.30,   -- part of the reserve held as USD deposits (MiCA Art. 54)
-  escrow_days   int     not null default 14      -- vet report deadline, then the escrow refunds the buyer
+  escrow_days   int     not null default 14,     -- vet report deadline, then the escrow refunds the buyer
+  aml_large     numeric not null default 50000,  -- monitoring: "large" payment threshold (USD/PC)
+  aml_multiple  numeric not null default 3,      -- ... and this many times the sender's largest earlier payment
+  aml_passthrough_min   numeric not null default 10000, -- pass-through rule applies from this amount
+  aml_passthrough_share numeric not null default 0.8    -- share of the last 24 h's incoming PC forwarded
 );
 
 create table polo.escrows (
@@ -134,6 +153,24 @@ create table polo.escrows (
   accepted_at  timestamptz,                         -- seller accepted the escrow and the vet
   expires_at   timestamptz not null,                -- seller acceptance, then vet report due by then
   settled_at   timestamptz,
+  lock_block   bigint references polo.ledger(block),
+  settle_block bigint references polo.ledger(block)
+);
+
+-- Transfers held by transaction monitoring until the partner bank or treasury reviews them.
+create table polo.holds (
+  id           serial primary key,
+  from_id      int not null references polo.accounts(id),
+  to_id        int not null references polo.accounts(id),
+  amount       numeric(14,2) not null check (amount > 0),
+  memo         text,
+  rule         text not null check (rule in ('large','passthrough','split')),
+  reason       text not null,                       -- shown to reviewers only (no tipping-off)
+  status       text not null default 'held' check (status in ('held','released','returned')),
+  created_at   timestamptz not null default now(),
+  decided_at   timestamptz,
+  decided_by   int references polo.accounts(id),
+  sender_frozen boolean not null default false,
   lock_block   bigint references polo.ledger(block),
   settle_block bigint references polo.ledger(block)
 );
@@ -188,6 +225,7 @@ alter table polo.ledger   enable row level security;
 alter table polo.config   enable row level security;
 alter table polo.escrows  enable row level security;
 alter table polo.requests enable row level security;
+alter table polo.holds    enable row level security;
 alter table polo.bonuses  enable row level security;
 alter table polo.standing enable row level security;
 
@@ -218,6 +256,9 @@ language plpgsql set search_path = '' as $$
 declare v_id int := polo.auth(p_token); v_kyc text;
 begin
   select kyc into v_kyc from polo.accounts where id = v_id;
+  if exists (select 1 from polo.accounts where id = v_id and frozen_at is not null) then
+    raise exception 'This wallet is frozen by the Polo Coin Treasury pending a compliance review. You cannot send, receive or cash out PC until it is lifted.';
+  end if;
   if v_kyc = 'pending' then
     raise exception 'Your identity check (KYC) is still pending. You can use Polo Coin once it is verified.';
   elsif v_kyc <> 'verified' then
@@ -272,6 +313,7 @@ language sql stable set search_path = '' as $$
     'kyc', a.kyc, 'kyc_at', a.kyc_at,
     'kyc_by_name', (select display_name from polo.accounts where id = a.kyc_by),
     'licence_no', a.licence_no, 'licence_authority', a.licence_authority, 'insurer', a.insurer,
+    'frozen_at', a.frozen_at,
     'usd', a.usd, 'pc', a.pc)
 $$;
 
@@ -326,7 +368,8 @@ language sql stable set search_path = '' as $$
     'requester_name', (select display_name from polo.accounts where id = r.requester_id),
     'payer_name',     (select display_name from polo.accounts where id = r.payer_id),
     'created_at', r.created_at, 'settled_at', r.settled_at,
-    'tx_hash', (select tx_hash from polo.ledger where block = r.block))
+    'tx_hash', (select tx_hash from polo.ledger where block = r.block),
+    'held', coalesce((select kind = 'lock' from polo.ledger where block = r.block), false))
 $$;
 
 create function polo.bonus_json(b polo.bonuses) returns json
@@ -360,8 +403,55 @@ $$;
 
 create function polo.contract_id() returns int
 language sql stable set search_path = '' as $$
-  select id from polo.accounts where role = 'contract' order by id limit 1
+  select id from polo.accounts where username = 'escrow'
 $$;
+
+-- The compliance hold wallet: PC of transfers under review sit here, visible on the ledger.
+create function polo.hold_id() returns int
+language sql stable set search_path = '' as $$
+  select id from polo.accounts where username = 'compliance'
+$$;
+
+-- Transaction monitoring: returns the rule and a reason if a transfer looks suspicious, else nulls.
+create function polo.aml_check(p_from int, p_to int, p_amount numeric, out o_rule text, out o_reason text)
+language plpgsql stable set search_path = '' as $$
+declare c polo.config; v_max numeric; v_in numeric; v_out numeric; v_n int; v_sum numeric;
+begin
+  select * into c from polo.config;
+  -- 1. Unusually large compared with the sender's own history.
+  select greatest((select max(amount) from polo.ledger where kind = 'transfer' and from_id = p_from),
+                  (select max(amount) from polo.holds where from_id = p_from and status = 'released')) into v_max;
+  if p_amount > c.aml_large and (v_max is null or p_amount > c.aml_multiple * v_max) then
+    o_rule := 'large';
+    o_reason := case when v_max is null
+      then format('Unusually large: first payment of this wallet, PC %s, above the PC %s threshold.',
+                  to_char(p_amount, 'FM999G999G990'), to_char(c.aml_large, 'FM999G999G990'))
+      else format('Unusually large: PC %s is more than %s times this wallet''s largest earlier payment (PC %s).',
+                  to_char(p_amount, 'FM999G999G990'), c.aml_multiple, to_char(v_max, 'FM999G999G990')) end;
+    return;
+  end if;
+  -- 2. Pass-through: most of what came in from others in the last 24 hours goes straight out again.
+  select coalesce(sum(amount), 0) into v_in from polo.ledger
+   where to_id = p_from and kind in ('transfer','release') and from_id is distinct from p_to
+     and created_at > now() - interval '24 hours';
+  select coalesce(sum(amount), 0) into v_out from polo.ledger
+   where from_id = p_from and kind in ('transfer','lock') and created_at > now() - interval '24 hours';
+  if p_amount >= c.aml_passthrough_min and v_in >= c.aml_passthrough_min
+     and v_out + p_amount >= c.aml_passthrough_share * v_in then
+    o_rule := 'passthrough';
+    o_reason := format('Pass-through: this wallet received PC %s from others in the last 24 hours and would forward %s%% of it.',
+                       to_char(v_in, 'FM999G999G990'), round(100 * (v_out + p_amount) / v_in));
+    return;
+  end if;
+  -- 3. Split payments: several smaller payments to the same recipient that together pass the threshold.
+  select count(*), coalesce(sum(amount), 0) into v_n, v_sum from polo.ledger
+   where kind = 'transfer' and from_id = p_from and to_id = p_to and created_at > now() - interval '24 hours';
+  if v_n >= 2 and p_amount <= c.aml_large and v_sum + p_amount > c.aml_large then
+    o_rule := 'split';
+    o_reason := format('Split payments: %s payments to the same recipient within 24 hours add up to PC %s.',
+                       v_n + 1, to_char(v_sum + p_amount, 'FM999G999G990'));
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- Business operations. Used by the api_* functions and by the demo seed,
@@ -395,7 +485,7 @@ end $$;
 -- Transfer between wallets: free and final.
 create function polo.op_transfer(p_from int, p_to int, p_amount numeric, p_memo text) returns polo.ledger
 language plpgsql set search_path = '' as $$
-declare v_amt numeric := polo.check_amount(p_amount); a polo.accounts;
+declare v_amt numeric := polo.check_amount(p_amount); a polo.accounts; r record; v_hold int; t polo.ledger;
 begin
   if p_to = p_from then raise exception 'You cannot send PC to yourself.'; end if;
   if not exists (select 1 from polo.accounts where id = p_to and role <> 'contract') then
@@ -404,10 +494,24 @@ begin
   if not exists (select 1 from polo.accounts where id = p_to and kyc = 'verified') then
     raise exception 'The recipient has not passed KYC yet and cannot receive PC.';
   end if;
-  perform 1 from polo.accounts where id in (p_from, p_to) order by id for update;
+  if exists (select 1 from polo.accounts where id = p_to and frozen_at is not null) then
+    raise exception 'The recipient''s wallet is frozen and cannot receive PC right now.';
+  end if;
+  perform 1 from polo.accounts where id in (p_from, p_to, polo.hold_id()) order by id for update;
   select * into a from polo.accounts where id = p_from;
   if a.pc < v_amt then
     raise exception 'Insufficient PC balance (available: %).', a.pc;
+  end if;
+  -- Transaction monitoring: suspicious transfers go to the compliance hold wallet instead.
+  select * into r from polo.aml_check(p_from, p_to, v_amt);
+  if r.o_rule is not null then
+    insert into polo.holds (from_id, to_id, amount, memo, rule, reason)
+    values (p_from, p_to, v_amt, nullif(trim(left(p_memo, 120)), ''), r.o_rule, r.o_reason) returning id into v_hold;
+    update polo.accounts set pc = pc - v_amt where id = p_from;
+    update polo.accounts set pc = pc + v_amt where id = polo.hold_id();
+    t := polo.append('lock', p_from, polo.hold_id(), v_amt, 0, 'Payment #' || v_hold || ' held for compliance review');
+    update polo.holds set lock_block = t.block where id = v_hold;
+    return t;
   end if;
   update polo.accounts set pc = pc - v_amt where id = p_from;
   update polo.accounts set pc = pc + v_amt where id = p_to;
@@ -437,7 +541,7 @@ declare v_amt numeric := polo.check_amount(p_amount); v_item text := trim(left(c
 begin
   if length(v_item) < 2 then raise exception 'Describe what you are buying, e.g. the horse''s name.'; end if;
   if p_seller = p_buyer then raise exception 'You cannot buy from yourself.'; end if;
-  if not exists (select 1 from polo.accounts where id = p_seller and kyc = 'verified' and role in ('patron','pro','breeder')) then
+  if not exists (select 1 from polo.accounts where id = p_seller and kyc = 'verified' and frozen_at is null and role in ('patron','pro','breeder')) then
     raise exception 'The seller must be a verified patron, player or breeder.';
   end if;
   if not exists (select 1 from polo.accounts where id = p_vet and kyc = 'verified' and role = 'vet') then
@@ -516,6 +620,44 @@ begin
   return e;
 end $$;
 
+-- Compliance review of a held transfer: release it to the recipient or return it to the sender.
+create function polo.op_hold_decide(p_hold int, p_reviewer int, p_release boolean) returns polo.holds
+language plpgsql set search_path = '' as $$
+declare h polo.holds; v_to int; t polo.ledger;
+begin
+  select * into h from polo.holds where id = p_hold for update;
+  if h.id is null then raise exception 'Held payment not found.'; end if;
+  if h.status <> 'held' then raise exception 'Payment #% has already been %.', h.id, h.status; end if;
+  if p_release and exists (select 1 from polo.accounts where id = h.to_id and frozen_at is not null) then
+    raise exception 'The recipient''s wallet is frozen. Return the payment to the sender instead.';
+  end if;
+  v_to := case when p_release then h.to_id else h.from_id end;
+  perform 1 from polo.accounts where id in (v_to, polo.hold_id()) order by id for update;
+  update polo.accounts set pc = pc - h.amount where id = polo.hold_id();
+  update polo.accounts set pc = pc + h.amount where id = v_to;
+  t := polo.append(case when p_release then 'release' else 'refund' end, polo.hold_id(), v_to, h.amount, 0,
+                   'Payment #' || h.id || case when p_release then ' released after compliance review'
+                                          else ' returned to sender after compliance review' end);
+  update polo.holds set status = case when p_release then 'released' else 'returned' end,
+         decided_at = now(), decided_by = p_reviewer, settle_block = t.block
+   where id = h.id returning * into h;
+  return h;
+end $$;
+
+-- Freeze or unfreeze a customer wallet (treasury only).
+create function polo.op_freeze(p_account int, p_by int, p_reason text) returns polo.accounts
+language plpgsql set search_path = '' as $$
+declare a polo.accounts; v_reason text := trim(left(coalesce(p_reason, ''), 200));
+begin
+  select * into a from polo.accounts where id = p_account for update;
+  if a.id is null then raise exception 'Account not found.'; end if;
+  if a.role in ('bank','admin','contract') then raise exception 'This account cannot be frozen.'; end if;
+  if a.frozen_at is not null then raise exception '% is already frozen.', a.display_name; end if;
+  if length(v_reason) < 5 then raise exception 'Give a short reason for the freeze (it stays internal).'; end if;
+  update polo.accounts set frozen_at = now(), frozen_by = p_by, frozen_reason = v_reason where id = a.id returning * into a;
+  return a;
+end $$;
+
 -- Win bonus: the patron locks the bonus in the contract wallet.
 create function polo.op_bonus_lock(p_patron int, p_player int, p_organizer int, p_amount numeric, p_match text) returns polo.bonuses
 language plpgsql set search_path = '' as $$
@@ -524,7 +666,7 @@ declare v_amt numeric := polo.check_amount(p_amount); v_match text := trim(left(
 begin
   if length(v_match) < 2 then raise exception 'Name the match the bonus is tied to, e.g. the final.'; end if;
   if p_player = p_patron then raise exception 'You cannot promise a bonus to yourself.'; end if;
-  if not exists (select 1 from polo.accounts where id = p_player and kyc = 'verified' and role in ('pro','groom')) then
+  if not exists (select 1 from polo.accounts where id = p_player and kyc = 'verified' and frozen_at is null and role in ('pro','groom')) then
     raise exception 'The bonus must go to a verified player or groom.';
   end if;
   if not exists (select 1 from polo.accounts where id = p_organizer and kyc = 'verified' and role = 'organizer') then
@@ -588,7 +730,7 @@ declare v_pw text := extensions.crypt('polo2026', extensions.gen_salt('bf'));
         v_patron int; v_pro int; v_breeder int; v_vet int; v_groom int; v_org int; v_t polo.ledger; v_e polo.escrows;
         v_b polo.bonuses; v_o int;
 begin
-  truncate polo.sessions, polo.standing, polo.bonuses, polo.requests, polo.escrows, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
+  truncate polo.sessions, polo.holds, polo.standing, polo.bonuses, polo.requests, polo.escrows, polo.ledger, polo.accounts, polo.reserve, polo.config restart identity cascade;
   insert into polo.config default values;
   insert into polo.reserve (usd) values (0);
   insert into polo.accounts (username, password_hash, display_name, role, org, country, wallet, usd, pc, kyc) values
@@ -602,7 +744,10 @@ begin
     ('organizer', v_pw, 'Alpine Polo Events','organizer','Tournament organiser (fictional)','Switzerland', polo.wallet_of('organizer'), 0, 0, 'verified'),
     -- The escrow smart contract holds locked PC. It has a wallet but nobody can log in to it.
     ('escrow', extensions.crypt(gen_random_uuid()::text, extensions.gen_salt('bf')), 'Polo Coin Escrow Contract', 'contract',
-               'Smart contract', 'Switzerland', polo.wallet_of('escrow-contract'), 0, 0, 'verified');
+               'Smart contract', 'Switzerland', polo.wallet_of('escrow-contract'), 0, 0, 'verified'),
+    -- Transfers under compliance review sit here until the partner bank or treasury decides.
+    ('compliance', extensions.crypt(gen_random_uuid()::text, extensions.gen_salt('bf')), 'Polo Coin Compliance Hold', 'contract',
+               'Held for AML review', 'Switzerland', polo.wallet_of('compliance-hold'), 0, 0, 'verified');
   update polo.accounts set licence_no = 'MP 3307 (fictional)', licence_authority = 'Provincial veterinary register, Buenos Aires',
          insurer = 'Seguros del Plata (fictional)', independence_declared_at = now() - interval '200 days',
          kyc_by = (select id from polo.accounts where username = 'admin'), kyc_at = now() - interval '199 days'
@@ -642,6 +787,9 @@ begin
   insert into polo.standing (payer_id, payee_id, amount, memo, every, next_due)
   values (v_patron, v_groom, 2500, 'Monthly wages', 'month', now()) returning id into v_o;
   perform polo.op_standing_run(v_o);
+  -- A payment caught by transaction monitoring: far larger than anything the patron paid before.
+  perform polo.op_buy(v_patron, 80000);
+  perform polo.op_transfer(v_patron, v_breeder, 80000, 'Six polo ponies for the season');
   -- One open payment request: the player asks for the next tournament fee.
   insert into polo.requests (requester_id, payer_id, amount, memo)
   values (v_pro, v_patron, 9500, 'Tournament fee, Polo Gold Cup Gstaad');
@@ -685,7 +833,7 @@ begin
             'role', role, 'org', org, 'country', country, 'wallet', wallet, 'licence_no', licence_no,
             'licence_authority', licence_authority,
             'vet_stats', case when role = 'vet' then polo.vet_stats(id) end) order by id), '[]')
-          from polo.accounts where kyc = 'verified' and role <> 'contract');
+          from polo.accounts where kyc = 'verified' and role <> 'contract' and frozen_at is null);
 end $$;
 
 create or replace function public.api_buy(p_token uuid, p_amount numeric) returns json
@@ -987,7 +1135,9 @@ language sql security definer set search_path = '' as $$
     'fees_usd',     (select coalesce(sum(fee), 0) from polo.ledger where kind = 'mint'),
     'minted_pc',    (select coalesce(sum(amount), 0) from polo.ledger where kind = 'mint'),
     'redeemed_pc',  (select coalesce(sum(amount), 0) from polo.ledger where kind = 'redeem'),
-    'escrow_pc',    (select coalesce(sum(pc), 0) from polo.accounts where role = 'contract'),
+    'escrow_pc',    (select pc from polo.accounts where id = polo.contract_id()),
+    'held_pc',      (select coalesce(pc, 0) from polo.accounts where id = polo.hold_id()),
+    'holds_open',   (select count(*) from polo.holds where status = 'held'),
     'escrows_open', (select count(*) from polo.escrows where status = 'locked'),
     'escrows_done', (select count(*) from polo.escrows where status <> 'locked'),
     'bonuses_open', (select count(*) from polo.bonuses where status = 'locked'),
@@ -1116,6 +1266,85 @@ begin
      set kyc = case when p_approve then 'verified' else 'rejected' end, kyc_by = r.id, kyc_at = now()
    where id = a.id returning * into a;
   return polo.account_json(a);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Transaction monitoring (held payments) and frozen wallets
+-- ---------------------------------------------------------------------
+create function polo.hold_json(h polo.holds, p_staff boolean) returns json
+language sql stable set search_path = '' as $$
+  select json_build_object(
+    'id', h.id, 'amount', h.amount, 'memo', h.memo, 'status', h.status,
+    'from_id', h.from_id, 'to_id', h.to_id,
+    'from_name', (select display_name from polo.accounts where id = h.from_id),
+    'to_name',   (select display_name from polo.accounts where id = h.to_id),
+    'rule',   case when p_staff then h.rule end,          -- reasons only for reviewers (no tipping-off)
+    'reason', case when p_staff then h.reason end,
+    'sender_frozen', h.sender_frozen,
+    'from_frozen', (select frozen_at is not null from polo.accounts where id = h.from_id),
+    'from_since',  (select coalesce(kyc_at, created_at) from polo.accounts where id = h.from_id),
+    'from_payments', (select count(*) from polo.ledger where kind = 'transfer' and from_id = h.from_id),
+    'created_at', h.created_at, 'decided_at', h.decided_at,
+    'decided_by_name', (select display_name from polo.accounts where id = h.decided_by),
+    'lock_hash',   (select tx_hash from polo.ledger where block = h.lock_block),
+    'settle_hash', (select tx_hash from polo.ledger where block = h.settle_block))
+$$;
+
+-- Reviewers (partner bank, treasury) see all held payments, the sender sees their own (without the reason).
+create or replace function public.api_holds(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_staff boolean := polo.role_of(v_id) in ('admin','bank');
+begin
+  return (select coalesce(json_agg(polo.hold_json(h, v_staff) order by (h.status = 'held') desc, h.id desc), '[]')
+            from (select * from polo.holds h where v_staff or h.from_id = v_id
+                   order by (h.status = 'held') desc, h.id desc limit 50) h);
+end $$;
+
+-- Release or return a held payment. The treasury can also freeze the sender in the same step.
+create or replace function public.api_hold_decide(p_token uuid, p_hold int, p_release boolean, p_freeze boolean default false) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); v_role text := polo.role_of(v_id); h polo.holds;
+begin
+  if v_role not in ('admin','bank') then raise exception 'Only the partner bank and the treasury review held payments.'; end if;
+  if p_freeze and v_role <> 'admin' then raise exception 'Only the treasury can freeze a wallet.'; end if;
+  if p_freeze and p_release then raise exception 'A payment cannot be released while freezing its sender.'; end if;
+  h := polo.op_hold_decide(p_hold, v_id, p_release);
+  if p_freeze then
+    perform polo.op_freeze(h.from_id, v_id, 'Held payment #' || h.id || ': ' || h.reason);
+    update polo.holds set sender_frozen = true where id = h.id returning * into h;
+  end if;
+  return polo.hold_json(h, true);
+end $$;
+
+create or replace function public.api_freeze(p_token uuid, p_account int, p_reason text) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token);
+begin
+  if polo.role_of(v_id) <> 'admin' then raise exception 'Only the treasury can freeze a wallet.'; end if;
+  return polo.account_json(polo.op_freeze(p_account, v_id, p_reason));
+end $$;
+
+create or replace function public.api_unfreeze(p_token uuid, p_account int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token); a polo.accounts;
+begin
+  if polo.role_of(v_id) <> 'admin' then raise exception 'Only the treasury can lift a freeze.'; end if;
+  update polo.accounts set frozen_at = null, frozen_by = null, frozen_reason = null
+   where id = p_account and frozen_at is not null returning * into a;
+  if a.id is null then raise exception 'This wallet is not frozen.'; end if;
+  return polo.account_json(a);
+end $$;
+
+-- Frozen wallets with the internal reason, for the partner bank and the treasury.
+create or replace function public.api_frozen(p_token uuid) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth(p_token);
+begin
+  if polo.role_of(v_id) not in ('admin','bank') then raise exception 'Only the partner bank and the treasury see frozen wallets.'; end if;
+  return (select coalesce(json_agg(json_build_object('id', a.id, 'display_name', a.display_name, 'role', a.role,
+            'country', a.country, 'pc', a.pc, 'frozen_at', a.frozen_at, 'frozen_reason', a.frozen_reason,
+            'frozen_by_name', (select display_name from polo.accounts where id = a.frozen_by)) order by a.frozen_at desc), '[]')
+            from polo.accounts a where a.frozen_at is not null);
 end $$;
 
 -- Admin only: reset the demo to its initial state.

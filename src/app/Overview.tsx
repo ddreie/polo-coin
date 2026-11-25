@@ -13,6 +13,7 @@ export default function Overview() {
   const { account, txs, flash } = useWallet();
   const { t } = useT();
   const verified = account.kyc === 'verified';
+  const frozen = !!account.frozen_at;
   const usdLabel = account.role === 'patron' ? t('Bank account (simulated)') : t('USD paid out to bank account');
 
   return (
@@ -26,7 +27,7 @@ export default function Overview() {
             <KycBadge kyc={account.kyc} />
           </p>
         </div>
-        {verified && account.role !== 'vet' && account.role !== 'organizer' && (
+        {verified && !frozen && account.role !== 'vet' && account.role !== 'organizer' && (
           <div className="quick-actions">
             {(account.role === 'patron' || account.usd > 0) && <Link className="btn btn-accent" to="/app/pay?tab=buy">{t('Buy PC')}</Link>}
             <Link className="btn" to="/app/pay?tab=send">{t('Send PC')}</Link>
@@ -49,6 +50,12 @@ export default function Overview() {
       </section>
 
       {!verified && <KycStatus account={account} />}
+      {verified && frozen && (
+        <section className="panel kyc-status kyc-status-rejected" role="status">
+          <h2>{t('Your wallet is frozen')}</h2>
+          <p>{t('The Polo Coin Treasury has frozen this wallet pending a compliance review. Your balance is safe, but you cannot send, receive or cash out PC until the freeze is lifted. Our team will contact you.')}</p>
+        </section>
+      )}
 
       <div className="dash-grid">
         <Todos />
@@ -62,16 +69,27 @@ export default function Overview() {
 
 function Todos() {
   const { account, requests } = useWallet();
-  const { toPay, toExamine, toAccept, toDecide, waiting, bonusWaiting } = useTodos();
+  const { toPay, toExamine, toAccept, toDecide, waiting, bonusWaiting, toReview, heldMine } = useTodos();
   const { t } = useT();
   const mine = requests.filter((r) => r.status === 'open' && r.requester_id === account.id);
-  const nothing = !toPay.length && !toExamine.length && !toAccept.length && !toDecide.length && !waiting.length && !bonusWaiting.length && !mine.length;
+  const nothing = !toPay.length && !toExamine.length && !toAccept.length && !toDecide.length && !toReview.length && !heldMine.length && !waiting.length && !bonusWaiting.length && !mine.length;
 
   return (
     <section className="panel todos" aria-labelledby="todo-h">
       <h2 id="todo-h">{t('To do')}</h2>
       {nothing && <p className="muted">{t('Nothing to do right now.')}</p>}
       {toPay.map((r) => <RequestRow key={r.id} r={r} incoming />)}
+      {toReview.map((h) => (
+        <div key={`h${h.id}`} className="todo">
+          <div><strong>{t('Review held payment')}: PC {money(h.amount)}</strong><small>Payment #{h.id}: {h.from_name} to {h.to_name}</small></div>
+          <Link className="btn btn-accent btn-small" to="/app/review">{t('Review')}</Link>
+        </div>
+      ))}
+      {heldMine.map((h) => (
+        <div key={`hm${h.id}`} className="todo todo-quiet">
+          <div><strong>{t('Payment to {name} under review', { name: h.to_name })}</strong><small>PC {money(h.amount)} · {t('Routine compliance check, usually a few hours')}</small></div>
+        </div>
+      ))}
       {toAccept.map((e) => (
         <div key={`a${e.id}`} className="todo">
           <div><strong>{t('Accept escrow')}: {e.item}</strong><small>Escrow #{e.id}: {e.buyer_name} buys from you, PC {money(e.amount)}, vet {e.vet_name}</small></div>
@@ -113,8 +131,11 @@ function RequestRow({ r, incoming }: { r: PayRequest; incoming?: boolean }) {
   const { busy, error, run } = useSubmit();
   const pay = () => run(async () => {
     const t0 = performance.now();
-    await api.requestPay(token, r.id);
-    toast.ok(`Paid PC ${money(r.amount)} to ${r.requester_name}`, `Settled in ${((performance.now() - t0) / 1000).toFixed(2)} s, no fee.`);
+    const paid = await api.requestPay(token, r.id);
+    if (paid.held) toast.ok(t('Payment under a short review'),
+      t('Your payment of PC {x} to {name} is held for a routine compliance check by our partner bank. It is released as soon as the check is done, usually within a few hours.',
+        { x: money(r.amount), name: r.requester_name }));
+    else toast.ok(`Paid PC ${money(r.amount)} to ${r.requester_name}`, `Settled in ${((performance.now() - t0) / 1000).toFixed(2)} s, no fee.`);
   });
   const decline = () => run(async () => { await api.requestDecline(token, r.id); });
   const short = incoming && account.pc < r.amount;

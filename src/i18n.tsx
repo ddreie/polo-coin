@@ -110,6 +110,15 @@ const ES: Record<string, string> = {
   'The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.':
     'El vendedor tiene hasta el {d} para aceptar (quedan {n} días). Hasta entonces el comprador aún puede cancelar.',
   'Accept escrow and vet': 'Aceptar escrow y veterinario',
+  'Payment under a short review': 'Pago en una breve revisión',
+  'Your payment of PC {x} to {name} is held for a routine compliance check by our partner bank. It is released as soon as the check is done, usually within a few hours.':
+    'Tu pago de PC {x} a {name} está retenido para un control de cumplimiento de rutina de nuestro banco socio. Se libera en cuanto termina el control, normalmente en pocas horas.',
+  'Review held payment': 'Revisar pago retenido',
+  'Payment to {name} under review': 'Pago a {name} en revisión',
+  'Routine compliance check, usually a few hours': 'Control de rutina, normalmente pocas horas',
+  'Your wallet is frozen': 'Tu billetera está congelada',
+  'The Polo Coin Treasury has frozen this wallet pending a compliance review. Your balance is safe, but you cannot send, receive or cash out PC until the freeze is lifted. Our team will contact you.':
+    'La tesorería de Polo Coin congeló esta billetera por una revisión de cumplimiento. Tu saldo está seguro, pero no puedes enviar, recibir ni retirar PC hasta que se levante. Nuestro equipo te contactará.',
   'Vet profile': 'Perfil del veterinario', 'Verified by Polo Coin': 'Verificado por Polo Coin', 'since {d}': 'desde el {d}',
   'New on Polo Coin: no examinations reported yet.': 'Nuevo en Polo Coin: todavía no informó ningún examen.',
   'Examinations': 'Exámenes', '{p} passed, {f} failed': '{p} aprobados, {f} no aprobados',

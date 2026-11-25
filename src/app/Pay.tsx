@@ -185,8 +185,15 @@ function Send() {
     run(async () => {
       const t0 = performance.now();
       const tx = await api.transfer(token, rec.id, amt, memo);
-      toast.ok(`Sent ${money(tx.amount)} PC to ${rec.display_name}`,
-        <>Settled in {secs(t0)} s, no fee. Block #{tx.block}, tx {shortHash(tx.tx_hash)}. A bank wire would still be {SWIFT.daysLow}–{SWIFT.daysHigh} days away.</>);
+      if (tx.kind === 'lock') {
+        // Held by transaction monitoring. The sender is not told which rule fired (no tipping-off).
+        toast.ok(t('Payment under a short review'),
+          t('Your payment of PC {x} to {name} is held for a routine compliance check by our partner bank. It is released as soon as the check is done, usually within a few hours.',
+            { x: money(tx.amount), name: rec.display_name }));
+      } else {
+        toast.ok(`Sent ${money(tx.amount)} PC to ${rec.display_name}`,
+          <>Settled in {secs(t0)} s, no fee. Block #{tx.block}, tx {shortHash(tx.tx_hash)}. A bank wire would still be {SWIFT.daysLow}–{SWIFT.daysHigh} days away.</>);
+      }
       setV(''); setMemo('');
     });
   }
