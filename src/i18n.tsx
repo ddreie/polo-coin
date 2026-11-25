@@ -74,6 +74,12 @@ const ES: Record<string, string> = {
   'Waiting for the vet check': 'Esperando el examen veterinario',
   'Buyer': 'Comprador', 'Seller': 'Vendedor', 'Veterinarian': 'Veterinario',
   'Vet check passed': 'Examen aprobado', 'Vet check failed': 'Examen no aprobado',
+  'No vet report within 14 days, refunded to the buyer': 'Sin informe veterinario en 14 días, reembolsado al comprador',
+  'Cancelled by the buyer': 'Cancelado por el comprador',
+  'Vet report due by {d} ({n} days left). Without a report, the contract refunds the buyer automatically.':
+    'Informe veterinario hasta el {d} (quedan {n} días). Sin informe, el contrato reembolsa al comprador automáticamente.',
+  'If the vet does not report within 14 days, the PC come back to you automatically.':
+    'Si el veterinario no informa en 14 días, los PC vuelven a ti automáticamente.',
   'Report: passed': 'Informar: aprobado', 'Report: failed': 'Informar: no aprobado',
   'Cancel and refund': 'Cancelar y reembolsar',
   'No escrows yet.': 'Todavía no hay escrows.',
@@ -90,7 +96,8 @@ const ES: Record<string, string> = {
   'Lock': 'Bloquear', 'Examine': 'Examinar', 'Settle': 'Liquidar', 'Play': 'Jugar',
   'Buyer’s PC move into the contract wallet': 'Los PC del comprador pasan a la billetera del contrato',
   'The named vet checks the horse': 'El veterinario designado revisa el caballo',
-  'Passed: paid to seller. Failed: back to buyer': 'Aprobado: se paga al vendedor. No aprobado: vuelve al comprador',
+  'Passed: paid to seller. Failed or no report within 14 days: back to buyer':
+    'Aprobado: se paga al vendedor. No aprobado o sin informe en 14 días: vuelve al comprador',
   'The patron’s bonus moves into the contract': 'El bono del patrón pasa al contrato',
   'The organiser records the result': 'El organizador registra el resultado',
   'Won: paid to the player. Lost: back to the patron': 'Ganado: se paga al jugador. Perdido: vuelve al patrón',

@@ -15,6 +15,11 @@ export function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+/** Whole days until a deadline (0 = due today or overdue). */
+export const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+export const dateShort = (iso: string, lang: 'en' | 'es' = 'en') =>
+  new Date(iso).toLocaleDateString(lang === 'es' ? 'es-AR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 export const roleLabel: Record<Role, string> = {
   patron: 'Patron',
   pro: 'Professional player',

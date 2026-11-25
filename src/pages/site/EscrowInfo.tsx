@@ -31,8 +31,8 @@ export default function EscrowInfo() {
       <Section tone="cream" title="How the escrow contract works">
         <ol className="flow-steps">
           <li><span>1</span><h3>Lock</h3><p>The patron names the horse, the seller and an independent vet, and locks the price. The PC move into the contract’s wallet, visible on the ledger.</p></li>
-          <li><span>2</span><h3>Examine</h3><p>The vet examines the horse and reports “passed” or “failed” in the app. Only the vet named in the contract can do this.</p></li>
-          <li><span>3</span><h3>Settle</h3><p>The contract executes on its own: passed means paid to the breeder within seconds, failed means refunded to the patron. The patron can cancel while the check is still open.</p></li>
+          <li><span>2</span><h3>Examine</h3><p>The vet examines the horse and reports “passed” or “failed” in the app. Only the vet named in the contract can do this, and the report is due within 14 days.</p></li>
+          <li><span>3</span><h3>Settle</h3><p>The contract executes on its own: passed means paid to the breeder within seconds, failed means refunded to the patron. Without a report after 14 days the patron gets the money back, so nothing stays locked forever. The patron can cancel while the check is still open.</p></li>
         </ol>
       </Section>
 

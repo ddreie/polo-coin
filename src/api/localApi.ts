@@ -6,7 +6,7 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser. Keep it in sync with the SQL rules.
  */
-const KEY = 'polo-coin-demo-v5';
+const KEY = 'polo-coin-demo-v6';
 const FEE_RATE = 0.01;      // on every purchase of PC
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.042;
@@ -97,6 +97,9 @@ async function opRedeem(s: State, acc: Stored, amount: number) {
   return append(s, 'redeem', acc.id, byRole(s, 'bank').id, amt, 0, 'PC burned, USD paid out by partner bank');
 }
 
+/** Vet report deadline: without a report the escrow refunds the buyer (same as polo.config.escrow_days). */
+export const ESCROW_DAYS = 14;
+
 async function opEscrowLock(s: State, buyer: Stored, seller: number, vet: number, amount: number, item: string) {
   const amt = checkAmount(amount);
   const what = item.trim().slice(0, 80);
@@ -111,8 +114,10 @@ async function opEscrowLock(s: State, buyer: Stored, seller: number, vet: number
   if (buyer.pc < amt) throw new Error(`Insufficient PC balance (available: ${buyer.pc.toFixed(2)}).`);
   const contract = byRole(s, 'contract');
   const e: StoredEscrow = {
-    id: s.escrows.length + 1, amount: amt, item: what, status: 'locked', vet_passed: null,
-    buyer_id: buyer.id, seller_id: seller, vet_id: vet, created_at: now(), settled_at: null, lock_block: null, settle_block: null,
+    id: s.escrows.length + 1, amount: amt, item: what, status: 'locked', vet_passed: null, refund_reason: null,
+    buyer_id: buyer.id, seller_id: seller, vet_id: vet, created_at: now(),
+    expires_at: new Date(Date.now() + ESCROW_DAYS * 86400000).toISOString(),
+    settled_at: null, lock_block: null, settle_block: null,
   };
   s.escrows.push(e);
   buyer.pc = round2(buyer.pc - amt);
@@ -121,7 +126,8 @@ async function opEscrowLock(s: State, buyer: Stored, seller: number, vet: number
   return e;
 }
 
-async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed: boolean | null) {
+async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed: boolean | null,
+  reason: Escrow['refund_reason']) {
   const e = s.escrows.find((x) => x.id === id);
   if (!e) throw new Error('Escrow not found.');
   if (e.status !== 'locked') throw new Error(`Escrow #${e.id} is already ${e.status}.`);
@@ -129,10 +135,21 @@ async function opEscrowSettle(s: State, id: number, release: boolean, vetPassed:
   const to = byId(s, release ? e.seller_id : e.buyer_id)!;
   contract.pc = round2(contract.pc - e.amount);
   to.pc = round2(to.pc + e.amount);
-  const why = release ? ': vet check passed, paid to seller' : vetPassed === false ? ': vet check failed, refunded' : ': cancelled by buyer, refunded';
+  const why = release ? ': vet check passed, paid to seller'
+    : reason === 'vet_failed' ? ': vet check failed, refunded'
+    : reason === 'expired' ? `: no vet report within ${ESCROW_DAYS} days, refunded`
+    : ': cancelled by buyer, refunded';
   const t = await append(s, release ? 'release' : 'refund', contract.id, to.id, e.amount, 0, `Escrow #${e.id}${why}`);
-  Object.assign(e, { status: release ? 'released' : 'refunded', vet_passed: vetPassed, settled_at: now(), settle_block: t.block });
+  Object.assign(e, { status: release ? 'released' : 'refunded', vet_passed: vetPassed, refund_reason: release ? null : reason,
+    settled_at: now(), settle_block: t.block });
   return e;
+}
+
+/** Escrow deadline: refund every open escrow whose vet report is overdue. */
+async function opEscrowExpireDue(s: State) {
+  const due = s.escrows.filter((e) => e.status === 'locked' && e.expires_at <= now()).sort((a, b) => a.id - b.id);
+  for (const e of due) await opEscrowSettle(s, e.id, false, null, 'expired');
+  return due.length;
 }
 
 async function opBonusLock(s: State, patron: Stored, player: number, organizer: number, amount: number, match: string) {
@@ -420,6 +437,7 @@ export function createLocalApi(): Api {
     },
     async escrows(token) {
       const { s, acc } = await auth(token);
+      if (await opEscrowExpireDue(s)) save(s);   // every wallet refresh enforces the deadline
       const all = acc.role === 'bank' || acc.role === 'admin';
       return s.escrows.filter((e) => all || [e.buyer_id, e.seller_id, e.vet_id].includes(acc.id))
         .sort((a, b) => Number(b.status === 'locked') - Number(a.status === 'locked') || b.id - a.id)
@@ -431,13 +449,17 @@ export function createLocalApi(): Api {
       const e = s.escrows.find((x) => x.id === id);
       if (!e) throw new Error('Escrow not found.');
       if (e.vet_id !== acc.id) throw new Error(`Only the veterinarian named in escrow #${e.id} can report the examination.`);
-      return escrowOut(s, await opEscrowSettle(s, id, passed, passed));
+      await opEscrowExpireDue(s);   // deadline passed: the refund wins over a late report
+      if (e.refund_reason === 'expired') return escrowOut(s, e);
+      return escrowOut(s, await opEscrowSettle(s, id, passed, passed, passed ? null : 'vet_failed'));
     }),
     escrowCancel: (token, id) => tx(token, async (s, acc) => {
       const e = s.escrows.find((x) => x.id === id);
       if (!e) throw new Error('Escrow not found.');
       if (e.buyer_id !== acc.id) throw new Error(`Only the buyer can cancel escrow #${e.id}.`);
-      return escrowOut(s, await opEscrowSettle(s, id, false, null));
+      await opEscrowExpireDue(s);
+      if (e.refund_reason === 'expired') return escrowOut(s, e);
+      return escrowOut(s, await opEscrowSettle(s, id, false, null, 'cancelled'));
     }),
     async requests(token) {
       const { s, acc } = await auth(token);

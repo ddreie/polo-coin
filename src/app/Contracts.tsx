@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, type Bonus, type Escrow } from '../api';
 import { toast } from '../components/Toast';
-import { money, shortHash, timeAgo } from '../format';
+import { dateShort, daysLeft, money, shortHash, timeAgo } from '../format';
 import { useT } from '../i18n';
 import { useWallet } from '../wallet';
 import { AmountInput, useSubmit } from './Pay';
@@ -56,7 +56,7 @@ function EscrowSection() {
 function ContractSteps({ steps = [
   ['Lock', 'Buyer’s PC move into the contract wallet'],
   ['Examine', 'The named vet checks the horse'],
-  ['Settle', 'Passed: paid to seller. Failed: back to buyer'],
+  ['Settle', 'Passed: paid to seller. Failed or no report within 14 days: back to buyer'],
 ] }: { steps?: string[][] }) {
   const { t } = useT();
   return (
@@ -192,20 +192,27 @@ function CreateBonus() {
 
 function EscrowCard({ e }: { e: Escrow }) {
   const { token, account } = useWallet();
-  const { t } = useT();
+  const { t, lang } = useT();
   const { busy, error, run } = useSubmit();
   const isVet = e.vet_id === account.id && account.kyc === 'verified';
+  const left = daysLeft(e.expires_at);
+  const outcome = e.vet_passed === true ? t('Vet check passed')
+    : e.refund_reason === 'expired' ? t('No vet report within 14 days, refunded to the buyer')
+    : e.vet_passed === false || e.refund_reason === 'vet_failed' ? t('Vet check failed')
+    : t('Cancelled by the buyer');
   const isBuyer = e.buyer_id === account.id;
   const status = e.status === 'locked' ? t('Locked') : e.status === 'released' ? t('Paid to seller') : t('Refunded');
 
   const vet = (passed: boolean) => run(async () => {
     const r = await api.escrowVet(token, e.id, passed);
-    if (r.status === 'released') toast.ok(`Escrow #${e.id} settled`, `The contract paid PC ${money(e.amount)} to ${e.seller_name} automatically.`);
+    if (r.refund_reason === 'expired') toast.error(`Escrow #${e.id} has expired`, `The 14-day deadline passed before your report. The contract refunded PC ${money(e.amount)} to ${e.buyer_name}.`);
+    else if (r.status === 'released') toast.ok(`Escrow #${e.id} settled`, `The contract paid PC ${money(e.amount)} to ${e.seller_name} automatically.`);
     else toast.ok(`Escrow #${e.id} refunded`, `The horse failed the examination. PC ${money(e.amount)} went back to ${e.buyer_name}.`);
   });
   const cancel = () => run(async () => {
-    await api.escrowCancel(token, e.id);
-    toast.ok(`Escrow #${e.id} cancelled`, `PC ${money(e.amount)} are back in your wallet.`);
+    const r = await api.escrowCancel(token, e.id);
+    if (r.refund_reason === 'expired') toast.ok(`Escrow #${e.id} had already expired`, `The vet did not report within 14 days, so PC ${money(e.amount)} are back in your wallet.`);
+    else toast.ok(`Escrow #${e.id} cancelled`, `PC ${money(e.amount)} are back in your wallet.`);
   });
 
   return (
@@ -225,9 +232,15 @@ function EscrowCard({ e }: { e: Escrow }) {
       <p className="escrow-meta muted">
         {e.status === 'locked'
           ? <>{t('Waiting for the vet check')} · locked {timeAgo(e.created_at)} in contract <code title={e.contract_wallet}>{shortHash(e.contract_wallet)}</code></>
-          : <>{e.vet_passed === true ? t('Vet check passed') : e.vet_passed === false ? t('Vet check failed') : 'Cancelled by the buyer'} · settled {e.settled_at ? timeAgo(e.settled_at) : ''}
+          : <>{outcome} · settled {e.settled_at ? timeAgo(e.settled_at) : ''}
               {e.settle_hash && <> · tx <code title={e.settle_hash}>{shortHash(e.settle_hash)}</code></>}</>}
       </p>
+      {e.status === 'locked' && (
+        <p className={`escrow-deadline${left <= 3 ? ' soon' : ''}`}>
+          {t('Vet report due by {d} ({n} days left). Without a report, the contract refunds the buyer automatically.',
+            { d: dateShort(e.expires_at, lang), n: String(left) })}
+        </p>
+      )}
       {e.status === 'locked' && (isVet || isBuyer) && (
         <div className="escrow-actions">
           {isVet && <>
@@ -261,7 +274,7 @@ function CreateEscrow() {
     ev.preventDefault();
     run(async () => {
       const e = await api.escrowCreate(token, Number(seller), Number(vet), amt, item);
-      toast.ok(`Escrow #${e.id} created`, `PC ${money(e.amount)} are locked until ${e.vet_name} reports the examination.`);
+      toast.ok(`Escrow #${e.id} created`, `PC ${money(e.amount)} are locked until ${e.vet_name} reports the examination, at the latest for 14 days.`);
       setItem(''); setV('');
     });
   }
@@ -283,6 +296,7 @@ function CreateEscrow() {
         </select>
       </label>
       <AmountInput value={v} onChange={setV} cur="PC" max={account.pc} />
+      <p className="muted small">{t('If the vet does not report within 14 days, the PC come back to you automatically.')}</p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="btn btn-accent btn-wide" disabled={busy || amt <= 0 || item.trim().length < 2}>
         {t('Lock {x} PC in escrow', { x: amt > 0 ? money(amt) : '' })}

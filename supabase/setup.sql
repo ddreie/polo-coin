@@ -24,6 +24,10 @@
 --   * Escrow (smart contract): a buyer locks PC for a horse; the named vet
 --     confirms the pre-purchase examination; the contract then releases the
 --     PC to the seller automatically, or refunds the buyer if the horse fails.
+--     Deadline: without a vet report within 14 days (config.escrow_days) the
+--     contract refunds the buyer. Like on a real blockchain, a contract does
+--     not wake up by itself: the refund runs at the next call that touches
+--     escrows after the deadline (polo.op_escrow_expire_due).
 --     Locked PC sit in the wallet of the escrow contract and stay in supply.
 --   * Payment requests: a professional asks a patron for a fee; the patron
 --     pays it with one click (a normal transfer).
@@ -97,7 +101,8 @@ create table polo.config (
   fee_rate      numeric not null default 0.01,   -- 1 % on every purchase of PC
   bank_share    numeric not null default 0.5,    -- share of the fee for the partner bank
   reserve_yield numeric not null default 0.042,  -- yield on 3-month US Treasury bills
-  cash_share    numeric not null default 0.30    -- part of the reserve held as USD deposits (MiCA Art. 54)
+  cash_share    numeric not null default 0.30,   -- part of the reserve held as USD deposits (MiCA Art. 54)
+  escrow_days   int     not null default 14      -- vet report deadline, then the escrow refunds the buyer
 );
 
 create table polo.escrows (
@@ -109,7 +114,9 @@ create table polo.escrows (
   item         text not null,                       -- e.g. the horse being bought
   status       text not null default 'locked' check (status in ('locked','released','refunded')),
   vet_passed   boolean,
+  refund_reason text check (refund_reason in ('vet_failed','cancelled','expired')),
   created_at   timestamptz not null default now(),
+  expires_at   timestamptz not null,                -- no vet report by then: refunded to the buyer
   settled_at   timestamptz,
   lock_block   bigint references polo.ledger(block),
   settle_block bigint references polo.ledger(block)
@@ -271,7 +278,8 @@ language sql stable set search_path = '' as $$
     'buyer_name',  (select display_name from polo.accounts where id = e.buyer_id),
     'seller_name', (select display_name from polo.accounts where id = e.seller_id),
     'vet_name',    (select display_name from polo.accounts where id = e.vet_id),
-    'created_at', e.created_at, 'settled_at', e.settled_at,
+    'refund_reason', e.refund_reason,
+    'created_at', e.created_at, 'expires_at', e.expires_at, 'settled_at', e.settled_at,
     'lock_hash',   (select tx_hash from polo.ledger where block = e.lock_block),
     'settle_hash', (select tx_hash from polo.ledger where block = e.settle_block),
     'contract_wallet', (select wallet from polo.accounts where role = 'contract' order by id limit 1))
@@ -407,8 +415,9 @@ begin
   if a.pc < v_amt then
     raise exception 'Insufficient PC balance (available: %).', a.pc;
   end if;
-  insert into polo.escrows (buyer_id, seller_id, vet_id, amount, item)
-  values (p_buyer, p_seller, p_vet, v_amt, v_item) returning * into e;
+  insert into polo.escrows (buyer_id, seller_id, vet_id, amount, item, expires_at)
+  values (p_buyer, p_seller, p_vet, v_amt, v_item,
+          now() + make_interval(days => (select escrow_days from polo.config))) returning * into e;
   update polo.accounts set pc = pc - v_amt where id = p_buyer;
   update polo.accounts set pc = pc + v_amt where id = v_contract;
   t := polo.append('lock', p_buyer, v_contract, v_amt, 0, 'Escrow #' || e.id || ': ' || v_item);
@@ -416,8 +425,9 @@ begin
   return e;
 end $$;
 
--- Escrow: the contract pays out to the seller (vet passed) or back to the buyer (vet failed or buyer cancelled).
-create function polo.op_escrow_settle(p_escrow int, p_release boolean, p_vet_passed boolean) returns polo.escrows
+-- Escrow: the contract pays out to the seller (vet passed) or back to the buyer
+-- (p_reason: 'vet_failed', 'cancelled' by the buyer, or 'expired' without a vet report).
+create function polo.op_escrow_settle(p_escrow int, p_release boolean, p_vet_passed boolean, p_reason text) returns polo.escrows
 language plpgsql set search_path = '' as $$
 declare e polo.escrows; v_contract int := polo.contract_id(); v_to int; t polo.ledger;
 begin
@@ -430,12 +440,27 @@ begin
   update polo.accounts set pc = pc + e.amount where id = v_to;
   t := polo.append(case when p_release then 'release' else 'refund' end, v_contract, v_to, e.amount, 0,
                    'Escrow #' || e.id || case when p_release then ': vet check passed, paid to seller'
-                                          when p_vet_passed is false then ': vet check failed, refunded'
+                                          when p_reason = 'vet_failed' then ': vet check failed, refunded'
+                                          when p_reason = 'expired' then ': no vet report within '
+                                               || (select escrow_days from polo.config) || ' days, refunded'
                                           else ': cancelled by buyer, refunded' end);
   update polo.escrows set status = case when p_release then 'released' else 'refunded' end,
-         vet_passed = p_vet_passed, settled_at = now(), settle_block = t.block
+         vet_passed = p_vet_passed, refund_reason = case when p_release then null else p_reason end,
+         settled_at = now(), settle_block = t.block
    where id = e.id returning * into e;
   return e;
+end $$;
+
+-- Escrow deadline: refund every open escrow whose vet report is overdue. Returns how many were refunded.
+create function polo.op_escrow_expire_due() returns int
+language plpgsql set search_path = '' as $$
+declare r record; n int := 0;
+begin
+  for r in select id from polo.escrows where status = 'locked' and expires_at <= now() order by id loop
+    perform polo.op_escrow_settle(r.id, false, null, 'expired');
+    n := n + 1;
+  end loop;
+  return n;
 end $$;
 
 -- Win bonus: the patron locks the bonus in the contract wallet.
@@ -626,7 +651,11 @@ begin
   select * into e from polo.escrows where id = p_escrow;
   if e.id is null then raise exception 'Escrow not found.'; end if;
   if e.vet_id <> v_id then raise exception 'Only the veterinarian named in escrow #% can report the examination.', e.id; end if;
-  return polo.escrow_json(polo.op_escrow_settle(e.id, p_passed, p_passed));
+  -- Deadline passed: the refund wins over a late report (an error here would roll the refund back).
+  perform polo.op_escrow_expire_due();
+  select * into e from polo.escrows where id = p_escrow;
+  if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  return polo.escrow_json(polo.op_escrow_settle(e.id, p_passed, p_passed, case when p_passed then null else 'vet_failed' end));
 end $$;
 
 -- The buyer can cancel while the examination is still open; the PC go back to the buyer.
@@ -637,7 +666,10 @@ begin
   select * into e from polo.escrows where id = p_escrow;
   if e.id is null then raise exception 'Escrow not found.'; end if;
   if e.buyer_id <> v_id then raise exception 'Only the buyer can cancel escrow #%.', e.id; end if;
-  return polo.escrow_json(polo.op_escrow_settle(e.id, false, null));
+  perform polo.op_escrow_expire_due();
+  select * into e from polo.escrows where id = p_escrow;
+  if e.refund_reason = 'expired' then return polo.escrow_json(e); end if;
+  return polo.escrow_json(polo.op_escrow_settle(e.id, false, null, 'cancelled'));
 end $$;
 
 -- Escrows the caller is part of; treasury and partner bank see all.
@@ -645,6 +677,7 @@ create or replace function public.api_escrows(p_token uuid) returns json
 language plpgsql security definer set search_path = '' as $$
 declare v_id int := polo.auth(p_token); v_role text := polo.role_of(v_id);
 begin
+  perform polo.op_escrow_expire_due();   -- every wallet refresh enforces the deadline
   return (select coalesce(json_agg(polo.escrow_json(e) order by (e.status = 'locked') desc, e.id desc), '[]')
             from polo.escrows e
            where v_role in ('admin','bank') or v_id in (e.buyer_id, e.seller_id, e.vet_id));

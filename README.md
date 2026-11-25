@@ -28,7 +28,7 @@ In der Wallet kann man oben rechts die Rolle wechseln und die Sprache (EN/ES) um
 | Kauf (Mint) | USD vom Bankkonto in die Reserve, gleich viel PC wird ausgegeben | 1% zusätzlich in USD, 50% an Treasury, 50% an Partnerbank |
 | Transfer | PC von Wallet zu Wallet, sofort | keine |
 | Zahlungsanforderung | Spieler/Breeder/Tierärztin fordert Betrag an, Zahler bezahlt per Klick (normaler Transfer) | keine |
-| Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Käufer kann vorher abbrechen | keine |
+| Escrow | PC des Käufers gehen in die Contract-Wallet; die genannte Tierärztin meldet «bestanden» (→ an Verkäufer) oder «nicht bestanden» (→ zurück an Käufer); der Käufer kann vorher abbrechen; ohne Meldung innert 14 Tagen geht das Geld automatisch zurück an den Käufer | keine |
 | Win-Bonus | PC des Patrons gehen in die Contract-Wallet; der genannte Turnierveranstalter trägt «gewonnen» (→ an Spieler) oder «verloren» (→ zurück an Patron) ein; der Patron kann vorher abbrechen | keine |
 | Dauerauftrag | wöchentliche oder monatliche Zahlung; erste Rate sofort, fällige Raten werden ausgeführt, sobald die Wallet des Zahlers offen ist; «Pay next now» zahlt die nächste Rate sofort | keine |
 | Auszahlung (Burn) | PC wird vernichtet, USD aus der Reserve aufs Bankkonto | keine |

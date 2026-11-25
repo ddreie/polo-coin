@@ -29,7 +29,7 @@ const FAQ: { group: string; items: [string, ReactNode][] }[] = [
     ['Can I receive pesos?',
       <>You cash out in US dollars at the partner in Argentina. Converting them into pesos is possible as with any dollar account and costs about the same with any provider, subject to Argentine foreign exchange rules.</>],
     ['What happens if the horse fails the vet check?',
-      <>The escrow contract sends the money straight back to the buyer. Only the vet named in the contract can report the result. <Link to="/escrow">How escrow works</Link>.</>],
+      <>The escrow contract sends the money straight back to the buyer. Only the vet named in the contract can report the result. If the vet does not report within 14 days, the buyer is refunded as well. <Link to="/escrow">How escrow works</Link>.</>],
     ['Who can open an account?',
       <>Patrons, professional players, breeders and grooms, after an identity check. There are no anonymous wallets. <Link to="/security">Security and regulation</Link>.</>],
   ] },

@@ -90,9 +90,13 @@ export interface Escrow {
   item: string;
   status: EscrowStatus;
   vet_passed: boolean | null;
+  /** Why a refunded escrow went back to the buyer. */
+  refund_reason: 'vet_failed' | 'cancelled' | 'expired' | null;
   buyer_id: number; seller_id: number; vet_id: number;
   buyer_name: string; seller_name: string; vet_name: string;
   created_at: string;
+  /** Without a vet report by then, the contract refunds the buyer (14 days after locking). */
+  expires_at: string;
   settled_at: string | null;
   lock_hash: string | null;
   settle_hash: string | null;

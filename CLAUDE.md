@@ -19,7 +19,8 @@ unless they write in another language; the website itself is in English.
 Business rules (as in the paper): 1 PC = 1 USD; buying (mint) costs a 1% fee on top, paid in USD and split 50/50
 between treasury (`admin`) and partner bank (`bank`); transfers, payment requests and cash-out (burn) are free.
 Escrow: buyer locks PC in the contract wallet (role `contract`); the named vet (role `vet`) reports the examination
-and the contract pays the seller or refunds the buyer. Win bonus: the patron locks PC for a player; the named
+and the contract pays the seller or refunds the buyer. Without a vet report within 14 days (`polo.config.escrow_days`) the
+contract refunds the buyer at the next call that touches escrows (`polo.op_escrow_expire_due`). Win bonus: the patron locks PC for a player; the named
 organiser (role `organizer`) records won/lost and the contract pays or refunds. Standing orders pay weekly/monthly;
 due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Invariant: USD reserve = PC in
 circulation (incl. PC locked in contracts).

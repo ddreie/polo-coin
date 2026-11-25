@@ -1182,3 +1182,7 @@ input:not([type=radio]) { border-radius: var(--radius-s); }
   .coin-row-item + .coin-row-item { margin-left: -6px; }
   .coin-row-item:nth-child(even) { transform: translateY(8px); }
 }
+
+/* Escrow deadline (vet report due within 14 days) */
+.escrow-deadline { margin: var(--space-2, 8px) 0 0; padding-left: 10px; border-left: 3px solid var(--forest); font-size: .88rem; }
+.escrow-deadline.soon { border-left-color: var(--orange); }
