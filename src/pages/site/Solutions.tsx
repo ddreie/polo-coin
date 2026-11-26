@@ -3,7 +3,7 @@ import { ButtonLink, PageHero, Section, Stat, Cite, Notes } from '../../ui';
 const GROUPS = [
   {
     id: 'patrons', title: 'Patrons', role: 'They pay',
-    pain: 'A patron finances a team: player fees, horses, grooms, transport. Paying Argentina from a franc, euro or pound account costs the wire fee plus a hidden exchange-rate mark-up of 3–5%.',
+    pain: 'A patron finances a team: player fees, horses, grooms, transport. Paying Argentina from a franc, euro or pound account costs the wire fee plus a hidden exchange-rate mark-up of 3.1–4.7%.',
     gain: ['1% once, conversion included, known before you pay', 'No US dollar account needed', 'Pay any player in seconds, also on match day', 'Escrow protects horse purchases'],
     figure: ['1,100–6,750', 'patrons worldwide pay abroad'],
   },

@@ -5,7 +5,7 @@ import { api, type Party, type Role } from '../api';
 import { Avatar } from '../components/Brand';
 import { KycStatus } from '../components/Kyc';
 import { toast } from '../components/Toast';
-import { money, money0, roleLabel, shortHash, SWIFT } from '../format';
+import { money, money0, roleLabel, shortHash, SWIFT, wireCost } from '../format';
 import { useT } from '../i18n';
 import { useWallet } from '../wallet';
 
@@ -133,7 +133,7 @@ function Buy() {
         <div><dt>{t('You receive')}</dt><dd>PC {money(amt)}</dd></div>
         <div><dt>{t('Fee (1%)')}</dt><dd>USD {money(fee)}</dd></div>
         <div className="total"><dt>{t('You pay')}</dt><dd>USD {money(amt + fee)}</dd></div>
-        {amt > 0 && <div className="compare"><dt>{t('Same payment by bank wire')}</dt><dd>USD {money0(amt * SWIFT.feeLow)}–{money0(amt * SWIFT.feeHigh)}, {SWIFT.daysLow}–{SWIFT.daysHigh} days</dd></div>}
+        {amt > 0 && <div className="compare"><dt>{t('Same payment by bank wire')}</dt><dd>USD {money0(amt * wireCost(amt, 'low'))}–{money0(amt * wireCost(amt, 'high'))}, {SWIFT.daysLow}–{SWIFT.daysHigh} days</dd></div>}
       </dl>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="btn btn-accent btn-wide" disabled={busy || amt <= 0}>{busy ? t('Buying…') : `${t('Buy PC')}${amt > 0 ? ` · USD ${money(amt + fee)}` : ''}`}</button>
@@ -212,7 +212,7 @@ function Send() {
       <dl className="summary">
         <div><dt>{t('{name} receives', { name: rec?.display_name ?? t('Recipient') })}</dt><dd>PC {money(amt)}</dd></div>
         <div><dt>Fee</dt><dd>{t('Free')}</dd></div>
-        {amt > 0 && <div className="compare"><dt>{t('Same payment by bank wire')}</dt><dd>USD {money0(amt * SWIFT.feeLow)}–{money0(amt * SWIFT.feeHigh)}, {SWIFT.daysLow}–{SWIFT.daysHigh} days</dd></div>}
+        {amt > 0 && <div className="compare"><dt>{t('Same payment by bank wire')}</dt><dd>USD {money0(amt * wireCost(amt, 'low'))}–{money0(amt * wireCost(amt, 'high'))}, {SWIFT.daysLow}–{SWIFT.daysHigh} days</dd></div>}
       </dl>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="btn btn-wide" disabled={busy || amt <= 0 || !rec}>{busy ? t('Sending…') : `${t('Send PC')}${amt > 0 ? ` · ${money(amt)}` : ''}`}</button>

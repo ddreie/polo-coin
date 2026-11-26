@@ -19,7 +19,7 @@ const FAQ: { group: string; items: [string, ReactNode][] }[] = [
     ['Why not Wise?',
       <>Wise is cheap and transparent, but for Argentina it pays out pesos only and is limited to the equivalent of USD 18,000 per month. Player fees agreed in dollars and horse purchases do not fit that. <Link to="/pricing">Compare the costs</Link>.</>],
     ['Why not a normal bank transfer?',
-      <>From a franc, euro or pound account a transfer to Argentina costs 2–5% once the exchange-rate mark-up is included, and takes one to three days to reach the recipient’s account. Polo Coin costs 1% and arrives in seconds.</>],
+      <>From a franc, euro or pound account a transfer to Argentina costs 3.4–6.6% once the exchange-rate mark-up is included, and takes one to three days to reach the recipient’s account. Polo Coin costs 1% and arrives in seconds.</>],
   ] },
   { group: 'Using Polo Coin', items: [
     ['Do I need to know anything about crypto?',

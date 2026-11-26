@@ -7,7 +7,7 @@ const ROADMAP = [
   { when: 'Until mid-2028', title: 'Preparation', points: ['Licences: FINMA (Switzerland), MiCA (one EU member state)', 'Contracts with custodian, European and Argentine partner banks', 'Move from the prototype ledger to a public blockchain', 'Polo Coin app with identity checks'] },
   { when: 'Summer 2028 – winter 2029', title: 'Pilot', points: ['Selected tournaments of the European summer season', 'Then the US winter season: the same Argentine players, twice', 'Purchase fee waived during the pilot', 'Win well-known patrons and players first'] },
   { when: 'Spring 2029', title: 'Market launch', points: ['Europe and the United States', 'Onboarding through associations, clubs and tournaments'] },
-  { when: 'From end of 2029', title: 'Extensions', points: ['Club and tournament payments: entry fees, prize money, horse leasing', 'Automatic win bonus via smart contract', 'Payout partners in further countries, e.g. Uruguay', 'Other equestrian sports: show jumping, racing'] },
+  { when: 'From end of 2029', title: 'Extensions', points: ['Club and tournament payments: entry fees, prize money, horse leasing', 'Further segments such as horse shipments', 'Smart contracts for automatic prize money and horse lease release', 'Payout partners in further countries, e.g. Uruguay', 'Other equestrian sports: show jumping, racing'] },
 ];
 
 export default function About() {

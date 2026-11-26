@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import BreakEven from '../../components/BreakEven';
-import { money0 } from '../../format';
+import { money0, wireCost } from '../../format';
 import { ButtonLink, Card, PageHero, Section, Cite, Notes } from '../../ui';
 
-/** Figures from the seminar paper (Table 1 and section "Cost advantage of Polo Coin"):
- *  OUR fees of nine European and US banks, measured at USD 2,000 and USD 10,000,
- *  and exchange-rate mark-ups for transfers from non-USD accounts (Du et al., 2026; Lloyds; HSBC). */
+/** Figures from the seminar paper (Table 1 and section "Cost advantage of Polo Coin").
+ *  Scenario A, USD account: OUR fee only. Scenario B, CHF, EUR or GBP account: OUR fee plus the exchange-rate
+ *  mark-up of the account currency (Du et al., 2026; Lloyds; HSBC), applied only to banks of that currency.
+ *  Scenario B per the paper: USD 2,000 from 4.26% (Deutsche Bank 0.56% + 3.7%) to 6.64% (BBVA 1.94% + 4.7%),
+ *  USD 10,000 from 3.40% (UBS 0.30% + 3.1%) to 5.40% (BBVA 0.70% + 4.7%). */
 const OUR = { at2k: { low: 0.0056, high: 0.0194 }, at10k: { low: 0.0030, high: 0.0070 } };
-const MARKUP: Record<Cur, { low: number; high: number; note: string }> = {
-  USD: { low: 0, high: 0, note: 'No conversion from a US dollar account' },
-  CHF: { low: 0.031, high: 0.031, note: 'Measured mark-up CHF → USD (Du et al., 2026)' },
-  EUR: { low: 0.037, high: 0.047, note: 'Measured mark-up EUR → USD (Du et al., 2026)' },
-  GBP: { low: 0.0355, high: 0.037, note: 'Lloyds Bank 3.55%, HSBC 3.7%' },
-};
-type Cur = 'USD' | 'CHF' | 'EUR' | 'GBP';
+type Acct = 'non-usd' | 'usd';
+const ACCOUNTS: { id: Acct; label: string; note: string }[] = [
+  { id: 'non-usd', label: 'CHF, EUR or GBP',
+    note: 'Mark-ups are applied only to banks of the same account currency. Cheapest: Deutsche Bank at USD 2,000, UBS at USD 10,000. Most expensive: BBVA. Mark-ups: CHF 3.1%, EUR 3.7–4.7% (Du et al., 2026), GBP 3.55–3.7% (Lloyds, HSBC)' },
+  { id: 'usd', label: 'USD', note: 'No conversion from a US dollar account, so only the OUR fee applies' },
+];
 const PC_FEE = 0.01;
 const WISE_LIMIT = 18000;
 
@@ -76,11 +77,11 @@ export default function Pricing() {
 
 function Calculator() {
   const [amount, setAmount] = useState(10000);
-  const [cur, setCur] = useState<Cur>('EUR');
+  const [acct, setAcct] = useState<Acct>('non-usd');
   const a = Math.max(0, amount);
-  const m = MARKUP[cur];
-  const bankLow = ourFee(a || 1, 'low') + m.low;
-  const bankHigh = ourFee(a || 1, 'high') + m.high;
+  const m = ACCOUNTS.find((x) => x.id === acct)!;
+  const bankLow = acct === 'usd' ? ourFee(a || 1, 'low') : wireCost(a || 1, 'low');
+  const bankHigh = acct === 'usd' ? ourFee(a || 1, 'high') : wireCost(a || 1, 'high');
   const saveLow = Math.max(0, bankLow - PC_FEE);
   const saveHigh = Math.max(0, bankHigh - PC_FEE);
 
@@ -94,8 +95,8 @@ function Calculator() {
         <div className="calc-cur" role="group" aria-label="Your account currency">
           <span>Your account is in</span>
           <div>
-            {(['CHF', 'EUR', 'GBP', 'USD'] as Cur[]).map((c) => (
-              <button key={c} type="button" aria-pressed={cur === c} onClick={() => setCur(c)}>{c}</button>
+            {ACCOUNTS.map((c) => (
+              <button key={c.id} type="button" aria-pressed={acct === c.id} onClick={() => setAcct(c.id)}>{c.label}</button>
             ))}
           </div>
         </div>

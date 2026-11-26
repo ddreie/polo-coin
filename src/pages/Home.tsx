@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { startTour, useGoToStep } from '../components/Tour';
-import { money0, SWIFT } from '../format';
+import { money0, SWIFT, wireCost } from '../format';
 import { useSession } from '../session';
 import { ButtonLink, Cite, Notes, Section } from '../ui';
 import { useStats } from '../useStats';
@@ -25,7 +25,7 @@ export default function Home() {
           </p>
           <h1>Pay your polo team in Argentina the same minute.</h1>
           <p className="home-lede">
-            Patrons in Europe and the US pay players, breeders and grooms in Argentina by bank wire, at 2–5% in fees
+            Patrons in Europe and the US pay players, breeders and grooms in Argentina by bank wire, at 3.4–6.6% in fees from a franc, euro or pound account
             and several days of waiting.<Cite id="paper" /> Polo Coin is backed 1:1 by US dollars. You pay 1% when you buy it.
             Every payment after that is free and arrives in seconds.
           </p>
@@ -142,7 +142,7 @@ export default function Home() {
 }
 
 const AUDIENCES = [
-  { id: 'patrons', role: 'Pays', title: 'Patrons', text: 'Pay players, grooms and horses abroad for 1% instead of 2–5%, with the full cost known up front.' },
+  { id: 'patrons', role: 'Pays', title: 'Patrons', text: 'Pay players, grooms and horses abroad for 1% instead of 3.4–6.6%, with the full cost known up front.' },
   { id: 'players', role: 'Receives', title: 'Professionals', text: 'Get the tournament fee in US dollars within seconds, before the next chukka.' },
   { id: 'breeders', role: 'Receives', title: 'Breeders', text: 'Ship the horse knowing the price is already locked in escrow.' },
   { id: 'grooms', role: 'Receives and sends', title: 'Grooms', text: 'Receive wages and send savings home to the family without fixed bank fees.' },
@@ -153,8 +153,8 @@ function Race() {
   const [amount, setAmount] = useState(20000);
   const [run, setRun] = useState(0);
   const pcFee = amount * 0.01;
-  const wireLow = amount * SWIFT.feeLow;
-  const wireHigh = amount * SWIFT.feeHigh;
+  const wireLow = amount * wireCost(amount, 'low');
+  const wireHigh = amount * wireCost(amount, 'high');
 
   return (
     <figure className="race">

@@ -8,7 +8,7 @@ const BANK_SHARE = 0.5;        // part of the fee passed on to partner banks
 const TBILL_SHARE = 0.7;       // part of the reserve in T-bills
 const YIELD = 0.042;           // 3-month T-bill yield
 const MARKET = [               // payment volumes from the paper, USD m per year
-  { label: 'Argentine horse exports (declared value)', low: 20, high: 35 },
+  { label: 'Argentine horse exports (declared value, 2023 and Jan–Nov 2025)', low: 17.8, high: 20.7 },
   { label: 'Remittances of grooms abroad', low: 7.6, high: 25 },
 ];
 

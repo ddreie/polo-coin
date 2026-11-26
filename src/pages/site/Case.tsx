@@ -13,18 +13,18 @@ const MARKET = [
 const CANVAS: { area: string; title: string; items: string[] }[] = [
   { area: 'kp', title: 'Key partners', items: ['Custodian bank (reserve)', 'European partner banks (conversion)', 'Argentine payout partner', 'Blockchain infrastructure', 'Associations, clubs, tournament organisers', 'Veterinarians'] },
   { area: 'ka', title: 'Key activities', items: ['Issuing and redeeming coins', 'KYC and AML checks', 'Reserve management', 'App and smart contracts', 'Community building'] },
-  { area: 'kr', title: 'Key resources', items: ['Licence or licensed issuing partner', 'USD reserve', 'Wallet and contract platform', 'Network in the polo community'] },
-  { area: 'vp', title: 'Value propositions', items: ['1% instead of 2–5%', 'Seconds instead of days, 24/7', 'Full cost known up front', 'Escrow for horse purchases', 'Win bonus paid automatically'] },
+  { area: 'kr', title: 'Key resources', items: ['Licences: FINMA (Switzerland), MiCA (EU)', 'USD reserve', 'Wallet and contract platform', 'Network in the polo community'] },
+  { area: 'vp', title: 'Value propositions', items: ['1% instead of 3.4–6.6%', 'Seconds instead of days, 24/7', 'Full cost known up front', 'Escrow for horse purchases', 'Win bonus paid automatically'] },
   { area: 'cr', title: 'Customer relationships', items: ['Personal onboarding for patrons', 'Self-service app, in Spanish for recipients', 'Community and referrals'] },
   { area: 'ch', title: 'Channels', items: ['Tournaments: St. Moritz, Gstaad, Sotogrande, Palermo', 'Clubs and associations', 'App and website'] },
-  { area: 'cs', title: 'Customer segments', items: ['Payers: patrons in CH, EU, UK, US', 'Recipients: professionals, breeders, grooms, service providers'] },
+  { area: 'cs', title: 'Customer segments', items: ['Payers: patrons in CH, EU, UK, US', 'Recipients: professionals, breeders, grooms'] },
   { area: 'co', title: 'Cost structure', items: ['Compliance and licensing', 'Technology', 'Revenue share with partner banks', 'Tournament marketing', 'Staff'] },
   { area: 'rs', title: 'Revenue streams', items: ['1% purchase fee, shared with partner banks', 'Interest on the reserve, about 2.9% a year per dollar'] },
 ];
 
 const COMPETITORS = ['Bank wire (SWIFT)', 'Wise', 'Stablecoins via exchange', 'Polo Coin'];
 const COMPARE: [string, string[]][] = [
-  ['Cost', ['2–5%', 'low', 'depends on exchanges', '1% once']],
+  ['Cost', ['3.4–6.6%', 'low', 'depends on exchanges', '1% once']],
   ['Arrives', ['1–3 days', 'up to 3 days', 'minutes', 'seconds']],
   ['Paid out in', ['USD', 'pesos only', 'USD stablecoin', 'USD via local partner']],
   ['Amount limit', ['none', 'USD 18,000 a month', 'depends on exchange', 'none after KYC']],
@@ -35,7 +35,7 @@ const COMPARE: [string, string[]][] = [
 
 const SWOT = [
   { key: 's', title: 'Strengths', items: ['Clear cost and time advantage', 'Founders rooted in the polo community', 'Full backing and identified wallets', 'Escrow as unique selling point', 'Free to receive'] },
-  { key: 'w', title: 'Weaknesses', items: ['Small core market', 'Dependence on partner banks and a licensed issuer', 'Chicken-and-egg problem of a two-sided platform', 'No track record yet'] },
+  { key: 'w', title: 'Weaknesses', items: ['Small core market', 'Dependence on a few partner banks', 'Chicken-and-egg problem of a two-sided platform', 'No track record yet'] },
   { key: 'o', title: 'Opportunities', items: ['Stablecoins are 61.8% of crypto volume in Argentina', 'More legal certainty: Swiss FinIA revision, US GENIUS Act', 'G20 targets for cheaper, faster payments', 'Other equestrian sports and corridors'] },
   { key: 't', title: 'Threats', items: ['High compliance costs', 'Faster SWIFT gpi, expanding Wise', 'Cheaper established stablecoins', 'Volatile Argentine FX rules', 'Falling interest rates'] },
 ];
@@ -44,18 +44,21 @@ const TOWS = [
   ['SO', 'Use the high stablecoin acceptance in Argentina: free receipt and Spanish onboarding build the receiving side first.'],
   ['WO', 'Treat the small core market as a beachhead and expand to player fees, other equestrian sports and new corridors.'],
   ['ST', 'Set escrow and community roots against cheaper generic stablecoins and Wise.'],
-  ['WT', 'Work with several partner banks and start with a licensed issuing partner instead of an own licence.'],
+  ['WT', 'Work with several partner banks, so that no single partner can stop the conversion or the redemption.'],
 ];
 
 const MAP = [
   ['1 Introduction: problem, market, stakeholders', '/solutions', 'Solutions'],
-  ['2 Blockchain and stablecoins', '/explorer', 'Ledger with hash chain'],
-  ['3 Business model and revenue', '/pricing', 'Pricing, cost and break-even calculators'],
-  ['3 Smart contracts: escrow, win bonus', '/escrow', 'Escrow'],
-  ['5 Regulation', '/security', 'Security'],
-  ['2.2 Reserve and run risk', '/transparency', 'Proof of reserves and stress test'],
-  ['6 Competitors', '/pricing', 'Cost comparison'],
-  ['7 Roadmap and market entry', '/about#roadmap', 'Roadmap and seasons'],
+  ['2.1 Blockchain and distributed ledger technology', '/explorer', 'Ledger with hash chain'],
+  ['2.2 Stablecoins: reserve and run risk', '/transparency', 'Proof of reserves and stress test'],
+  ['3 Business model: cost advantage and revenue', '/pricing', 'Pricing, cost and break-even calculators'],
+  ['4.1 Participants and payment process', '/login', 'Demo accounts for every role'],
+  ['4.2 Smart contracts: escrow, win bonus', '/escrow', 'Escrow'],
+  ['4.3 Compliance and transparency', '/security', 'Transaction monitoring'],
+  ['4.4 Prototype and real implementation', '/security', 'Prototype and production'],
+  ['5 Regulatory and legal framework', '/security', 'Who regulates what'],
+  ['6 Competitor analysis', '/pricing', 'Cost comparison'],
+  ['7 Roadmap and outlook', '/about#roadmap', 'Roadmap and seasons'],
 ];
 
 export default function Case() {
@@ -74,14 +77,14 @@ export default function Case() {
           <div>
             <p className="band-intro">
               Polo money flows one way: patrons in Europe and the US pay professionals, grooms and breeders from Argentina.
-              These payments run through correspondent banks. From a franc, euro or pound account they cost 2–5% once the
+              These payments run through correspondent banks. From a franc, euro or pound account they cost 3.4–6.6% once the
               exchange-rate mark-up is counted, take one to three days to reach the recipient, and leave one side exposed
               when a horse is bought: either the money goes first or the horse does.
             </p>
             <p><Link to="/pricing">Calculate the cost of a transfer</Link></p>
           </div>
           <div className="grid-2">
-            <Stat value="2–5%" label="cost of a bank wire from a non-USD account" />
+            <Stat value="3.4–6.6%" label="cost of a bank wire from a non-USD account" />
             <Stat value="1–3 days" label="until the money is in the account" />
             <Stat value="USD 20.7 m" label={<>Argentine horse exports, Jan–Nov 2025 (+9%)<Cite id="infocampo2026" /></>} />
             <Stat value="40,000" label="players in 70 countries rely on Argentine horses and staff" />

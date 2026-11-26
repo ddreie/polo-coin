@@ -10,6 +10,14 @@ export const SOURCES: Record<string, Source> = {
     text: 'Financial Stability Board. (2025, October 9). G20 roadmap for enhancing cross-border payments: Consolidated progress report for 2025.',
     url: 'https://www.fsb.org/uploads/P091025.pdf',
   },
+  cpmi2022: {
+    text: 'Committee on Payments and Market Infrastructures. (2022). SWIFT gpi data indicate drivers of fast cross-border payments. Bank for International Settlements.',
+    url: 'https://www.bis.org/cpmi/publ/swift_gpi.htm',
+  },
+  du2026: {
+    text: 'Du, W., Huang, C., & Scharfstein, D. (2026). Competing rails for cross-border payments: Banks, fintechs, and stablecoins (BIS Working Papers No. 1385). Bank for International Settlements.',
+    url: 'https://www.bis.org/publications/working-paper-1385-competing-rails-crossborder-payments-banks-fintechs-and-stablecoins.pdf',
+  },
   swift2024: {
     text: 'Swift. (2024, October 17). Swift cross-border payment processing speed stretches further ahead of G20 target [Press release].',
     url: 'https://www.swift.com/news-events/press-releases/swift-cross-border-payment-processing-speed-stretches-further-ahead-g20-target',

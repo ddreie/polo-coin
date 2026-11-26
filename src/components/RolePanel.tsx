@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { toast } from './Toast';
-import { money, money0, SWIFT } from '../format';
+import { money, money0, SWIFT, wireCost } from '../format';
 import { useSession } from '../session';
 import { useWallet } from '../wallet';
 
@@ -37,7 +37,7 @@ function Patron() {
   const sent = txs.filter((t) => (t.kind === 'transfer' || t.kind === 'lock') && t.from_id === account.id);
   const vol = sent.reduce((s, t) => s + t.amount, 0);
   const fees = txs.filter((t) => t.kind === 'mint' && t.to_id === account.id).reduce((s, t) => s + t.fee, 0);
-  const saved = vol * SWIFT.feeMid - fees;
+  const saved = sent.reduce((s, t) => s + t.amount * wireCost(t.amount), 0) - fees;
   return (
     <section className="panel role">
       <h2>Your season so far</h2>
@@ -45,7 +45,7 @@ function Patron() {
         ['Payments sent', String(sent.length)],
         ['Volume paid', `PC ${money0(vol)}`],
         ['Fees paid (1% on purchases)', `USD ${money(fees)}`],
-        ['Saved vs. bank wire', `USD ${money0(Math.max(0, saved))}`, `Assumes a ${(SWIFT.feeMid * 100).toFixed(1)}% wire cost, the midpoint of 2–5%`],
+        ['Saved vs. bank wire', `USD ${money0(Math.max(0, saved))}`, 'Bank wire from a franc, euro or pound account, midpoint of the range in the seminar paper (3.4–6.6%)'],
       ]} />
     </section>
   );

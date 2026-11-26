@@ -32,8 +32,21 @@ export const roleLabel: Record<Role, string> = {
   contract: 'Smart contract',
 };
 
-/** Typical cross-border bank wire (from the business case). */
-export const SWIFT = { feeLow: 0.02, feeHigh: 0.05, feeMid: 0.035, daysLow: 1, daysHigh: 3 };
+/** Bank wire from a CHF, EUR or GBP account, as in the seminar paper (section 3.3.2, scenario B):
+ *  total cost = OUR fee + exchange-rate mark-up.
+ *  USD 2,000:  4.26% (Deutsche Bank 0.56% + 3.7%) to 6.64% (BBVA 1.94% + 4.7%).
+ *  USD 10,000: 3.40% (UBS 0.30% + 3.1%) to 5.40% (BBVA 0.70% + 4.7%).
+ *  Overall range 3.4–6.6%. Transfers take one to three days. */
+export const SWIFT = { feeLow: 0.034, feeHigh: 0.066, daysLow: 1, daysHigh: 3 };
+const WIRE = { at2k: { low: 0.0426, high: 0.0664 }, at10k: { low: 0.034, high: 0.054 } };
+
+/** Bank wire cost share for an amount from a non-USD account. OUR fees are mostly fixed, so the share falls with
+ *  the amount: interpolated on a log scale between the paper's two measurements, held constant outside them. */
+export function wireCost(amount: number, edge: 'low' | 'high' | 'mid' = 'mid'): number {
+  const w = Math.min(1, Math.max(0, Math.log(Math.max(amount, 1) / 2000) / Math.log(5)));
+  const at = (e: 'low' | 'high') => WIRE.at2k[e] + (WIRE.at10k[e] - WIRE.at2k[e]) * w;
+  return edge === 'mid' ? (at('low') + at('high')) / 2 : at(edge);
+}
 
 export const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
