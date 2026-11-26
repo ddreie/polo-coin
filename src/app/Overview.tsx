@@ -108,12 +108,18 @@ function Todos() {
           <Link className="btn btn-accent btn-small" to="/app/escrow?type=bonus">{t('Record')}</Link>
         </div>
       ))}
-      {bonusWaiting.map((b) => (
-        <div key={`bw${b.id}`} className="todo todo-quiet">
-          <div><strong>{t('Win bonus')}: {b.match}</strong><small>PC {money(b.amount)} locked for {b.player_name} · {t('Waiting for the result')}</small></div>
-          <Link to="/app/escrow?type=bonus">{t('Contracts')}</Link>
-        </div>
-      ))}
+      {bonusWaiting.map((b) => {
+        const confirm = b.cancel_requested_by !== null && b.cancel_requested_by !== account.id;
+        return (
+          <div key={`bw${b.id}`} className={confirm ? 'todo' : 'todo todo-quiet'}>
+            <div><strong>{t('Win bonus')}: {b.match}</strong>
+              <small>PC {money(b.amount)} locked for {b.player_name} · {confirm
+                ? t('{name} asked to cancel the bonus', { name: b.cancel_requested_by_name ?? '' })
+                : b.cancel_requested_by ? t('Cancellation requested') : t('Waiting for the result')}</small></div>
+            <Link className={confirm ? 'btn btn-accent btn-small' : undefined} to="/app/escrow?type=bonus">{confirm ? t('Review') : t('Contracts')}</Link>
+          </div>
+        );
+      })}
       {waiting.map((e) => (
         <div key={e.id} className="todo todo-quiet">
           <div><strong>{e.item}</strong><small>Escrow #{e.id}, PC {money(e.amount)} locked · {e.accepted_at ? t('Waiting for the vet check') : t('Waiting for the seller to accept')}</small></div>

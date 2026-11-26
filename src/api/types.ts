@@ -147,6 +147,10 @@ export interface Bonus {
   won: boolean | null;
   patron_id: number; player_id: number; organizer_id: number;
   patron_name: string; player_name: string; organizer_name: string;
+  /** Once locked, a bonus can only be stopped if patron and player agree: one asks, the other confirms. */
+  cancel_requested_by: number | null;
+  cancel_requested_by_name?: string | null;
+  cancel_requested_at: string | null;
   created_at: string;
   settled_at: string | null;
   lock_hash: string | null;
@@ -252,7 +256,10 @@ export interface Api {
   bonuses(token: string): Promise<Bonus[]>;
   bonusCreate(token: string, player: number, organizer: number, amount: number, match: string): Promise<Bonus>;
   bonusResult(token: string, bonus: number, won: boolean): Promise<Bonus>;
+  /** First call asks to cancel, the other party's call confirms (refund to the patron). */
   bonusCancel(token: string, bonus: number): Promise<Bonus>;
+  /** Decline or withdraw a cancellation request: the bonus stays locked. */
+  bonusKeep(token: string, bonus: number): Promise<Bonus>;
   /** Standing orders: weekly or monthly payments. The first instalment is paid at once. */
   standings(token: string): Promise<StandingOrder[]>;
   standingCreate(token: string, payee: number, amount: number, memo: string, every: 'week' | 'month'): Promise<StandingOrder>;

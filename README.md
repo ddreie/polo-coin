@@ -107,3 +107,7 @@ npm run dev:demo   # ohne Datenbank, Daten im Browser (zum Entwickeln)
 3. Vercel: Projekt anlegen. Veröffentlicht wird über GitHub Actions (`.github/workflows/deploy.yml`) mit dem Repository-Secret `VERCEL_TOKEN`. Die Supabase-URL und der öffentliche Key stehen in `src/config.ts`.
 
 Der „publishable key“ in `src/config.ts` ist öffentlich und darf im Code stehen. Den geheimen `service_role`-Key nie in den Code oder ins Repository legen.
+
+## Siegprämie (Win Bonus)
+
+Der Patron sperrt eine Prämie für einen Spieler im Vertrag, der Turnierveranstalter meldet das Resultat: gewonnen = Auszahlung an den Spieler, verloren = zurück an den Patron. Einmal gesperrt, ist die Prämie verbindlich: Sie kann nur storniert werden, wenn Patron und Spieler beide zustimmen (eine Seite beantragt, die andere bestätigt oder lehnt ab).

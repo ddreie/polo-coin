@@ -24,6 +24,9 @@
 --   * Escrow (smart contract): a buyer locks PC for a horse; the named vet
 --     confirms the pre-purchase examination; the contract then releases the
 --     PC to the seller automatically, or refunds the buyer if the horse fails.
+--   * Win bonus: once locked, it can only be stopped if patron AND player
+--     agree (one asks, the other confirms). Otherwise the organiser's result
+--     decides: won = paid to the player, lost = refunded to the patron.
 --     The buyer proposes a verified vet, the seller must accept the escrow
 --     (including the vet) before the vet can report. Declined = refunded.
 --     After acceptance the buyer can no longer cancel.
@@ -198,6 +201,9 @@ create table polo.bonuses (
   match        text not null,                       -- e.g. the final the bonus is tied to
   status       text not null default 'locked' check (status in ('locked','paid','refunded')),
   won          boolean,
+  -- Once locked, neither side can stop the bonus alone: one asks to cancel, the other must confirm.
+  cancel_requested_by int references polo.accounts(id),
+  cancel_requested_at timestamptz,
   created_at   timestamptz not null default now(),
   settled_at   timestamptz,
   lock_block   bigint references polo.ledger(block),
@@ -380,6 +386,9 @@ language sql stable set search_path = '' as $$
     'patron_name',    (select display_name from polo.accounts where id = b.patron_id),
     'player_name',    (select display_name from polo.accounts where id = b.player_id),
     'organizer_name', (select display_name from polo.accounts where id = b.organizer_id),
+    'cancel_requested_by', b.cancel_requested_by,
+    'cancel_requested_by_name', (select display_name from polo.accounts where id = b.cancel_requested_by),
+    'cancel_requested_at', b.cancel_requested_at,
     'created_at', b.created_at, 'settled_at', b.settled_at,
     'lock_hash',   (select tx_hash from polo.ledger where block = b.lock_block),
     'settle_hash', (select tx_hash from polo.ledger where block = b.settle_block))
@@ -701,7 +710,7 @@ begin
   t := polo.append(case when p_pay then 'release' else 'refund' end, v_contract, v_to, b.amount, 0,
                    'Win bonus #' || b.id || case when p_pay then ': match won, paid to player'
                                              when p_won is false then ': match lost, refunded'
-                                             else ': cancelled by patron, refunded' end);
+                                             else ': cancelled by patron and player, refunded' end);
   update polo.bonuses set status = case when p_pay then 'paid' else 'refunded' end,
          won = p_won, settled_at = now(), settle_block = t.block
    where id = b.id returning * into b;
@@ -1014,10 +1023,33 @@ create or replace function public.api_bonus_cancel(p_token uuid, p_bonus int) re
 language plpgsql security definer set search_path = '' as $$
 declare v_id int := polo.auth_verified(p_token); b polo.bonuses;
 begin
-  select * into b from polo.bonuses where id = p_bonus;
+  -- A locked bonus is a promise: it can only be stopped if patron and player both agree.
+  -- The first call asks to cancel, the other party's call confirms it and refunds the patron.
+  select * into b from polo.bonuses where id = p_bonus for update;
   if b.id is null then raise exception 'Win bonus not found.'; end if;
-  if b.patron_id <> v_id then raise exception 'Only the patron can cancel win bonus #%.', b.id; end if;
+  if v_id not in (b.patron_id, b.player_id) then raise exception 'Only the patron and the player of win bonus #% can cancel it.', b.id; end if;
+  if b.status <> 'locked' then raise exception 'Win bonus #% is already %.', b.id, b.status; end if;
+  if b.cancel_requested_by is null then
+    update polo.bonuses set cancel_requested_by = v_id, cancel_requested_at = now() where id = b.id returning * into b;
+    return polo.bonus_json(b);
+  end if;
+  if b.cancel_requested_by = v_id then
+    raise exception 'You have already asked to cancel win bonus #%. The other side has to confirm.', b.id;
+  end if;
   return polo.bonus_json(polo.op_bonus_settle(b.id, false, null));
+end $$;
+
+-- The other party declines a cancellation request, or the requester withdraws it: the bonus stays locked.
+create or replace function public.api_bonus_keep(p_token uuid, p_bonus int) returns json
+language plpgsql security definer set search_path = '' as $$
+declare v_id int := polo.auth_verified(p_token); b polo.bonuses;
+begin
+  select * into b from polo.bonuses where id = p_bonus for update;
+  if b.id is null then raise exception 'Win bonus not found.'; end if;
+  if v_id not in (b.patron_id, b.player_id) then raise exception 'Only the patron and the player of win bonus #% can do this.', b.id; end if;
+  if b.status <> 'locked' or b.cancel_requested_by is null then raise exception 'There is no open cancellation request for win bonus #%.', b.id; end if;
+  update polo.bonuses set cancel_requested_by = null, cancel_requested_at = null where id = b.id returning * into b;
+  return polo.bonus_json(b);
 end $$;
 
 create or replace function public.api_bonuses(p_token uuid) returns json

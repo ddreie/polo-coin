@@ -56,6 +56,7 @@ export function createSupabaseApi(url: string, key: string): Api {
       rpc<Bonus>('api_bonus_create', { p_token: t, p_player: player, p_organizer: organizer, p_amount: amount, p_match: match }).then(num),
     bonusResult: (t, id, won) => rpc<Bonus>('api_bonus_result', { p_token: t, p_bonus: id, p_won: won }).then(num),
     bonusCancel: (t, id) => rpc<Bonus>('api_bonus_cancel', { p_token: t, p_bonus: id }).then(num),
+    bonusKeep: (t, id) => rpc<Bonus>('api_bonus_keep', { p_token: t, p_bonus: id }).then(num),
     standings: (t) => rpc<StandingOrder[]>('api_standings', { p_token: t }).then((r) => r.map(num)),
     standingCreate: (t, payee, amount, memo, every) =>
       rpc<StandingOrder>('api_standing_create', { p_token: t, p_payee: payee, p_amount: amount, p_memo: memo, p_every: every }).then(num),

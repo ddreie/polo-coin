@@ -110,6 +110,23 @@ const ES: Record<string, string> = {
   'The seller has until {d} to accept ({n} days left). Until then the buyer can still cancel.':
     'El vendedor tiene hasta el {d} para aceptar (quedan {n} días). Hasta entonces el comprador aún puede cancelar.',
   'Accept escrow and vet': 'Aceptar escrow y veterinario',
+  'Cancellation requested': 'Cancelación solicitada',
+  'Win bonus #{n} cancelled': 'Premio #{n} cancelado',
+  'Both sides agreed. PC {x} went back to {name}.': 'Ambas partes estuvieron de acuerdo. PC {x} volvieron a {name}.',
+  '{name} has to confirm. Until then the bonus stays locked and the result still counts.':
+    '{name} tiene que confirmar. Hasta entonces el premio sigue bloqueado y el resultado sigue contando.',
+  'Request withdrawn': 'Solicitud retirada', 'Bonus kept': 'Premio mantenido',
+  'The bonus stays locked until the organiser records the result.': 'El premio sigue bloqueado hasta que el organizador registre el resultado.',
+  '{name} asked to cancel the bonus': '{name} pidió cancelar el premio',
+  'Cancelled by patron and player': 'Cancelado por patrón y jugador',
+  'This bonus is a binding promise. It can only be cancelled if {a} and {b} both agree.':
+    'Este premio es una promesa vinculante. Solo se puede cancelar si {a} y {b} están de acuerdo.',
+  'You asked to cancel. {name} has to confirm, until then the result still counts.':
+    'Pediste cancelar. {name} tiene que confirmar, hasta entonces el resultado sigue contando.',
+  '{name} asked to cancel this bonus. If you agree, PC {x} go back to {p}.':
+    '{name} pidió cancelar este premio. Si estás de acuerdo, PC {x} vuelven a {p}.',
+  'Ask to cancel': 'Pedir cancelación', 'Withdraw request': 'Retirar solicitud',
+  'Agree to cancel': 'Aceptar cancelación', 'Keep the bonus': 'Mantener el premio',
   'Payment under a short review': 'Pago en una breve revisión',
   'Your payment of PC {x} to {name} is held for a routine compliance check by our partner bank. It is released as soon as the check is done, usually within a few hours.':
     'Tu pago de PC {x} a {name} está retenido para un control de cumplimiento de rutina de nuestro banco socio. Se libera en cuanto termina el control, normalmente en pocas horas.',

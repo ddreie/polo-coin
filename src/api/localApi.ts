@@ -6,7 +6,7 @@ import { blockHash, GENESIS_PREV, sha256Hex } from '../verify';
  * Used for offline development (`npm run dev:demo`) and as a fallback build.
  * Data lives in localStorage of the current browser. Keep it in sync with the SQL rules.
  */
-const KEY = 'polo-coin-demo-v9';
+const KEY = 'polo-coin-demo-v10';
 const FEE_RATE = 0.01;      // on every purchase of PC
 const BANK_SHARE = 0.5;
 const RESERVE_YIELD = 0.042;
@@ -22,7 +22,7 @@ interface StoredHold {
 type StoredEscrow = Omit<Escrow, 'buyer_name' | 'seller_name' | 'vet_name' | 'vet_licence' | 'vet_stats' | 'lock_hash' | 'settle_hash' | 'contract_wallet'>
   & { lock_block: number | null; settle_block: number | null };
 type StoredRequest = Omit<PayRequest, 'requester_name' | 'payer_name' | 'tx_hash'> & { block: number | null };
-type StoredBonus = Omit<Bonus, 'patron_name' | 'player_name' | 'organizer_name' | 'lock_hash' | 'settle_hash'>
+type StoredBonus = Omit<Bonus, 'patron_name' | 'player_name' | 'organizer_name' | 'cancel_requested_by_name' | 'lock_hash' | 'settle_hash'>
   & { lock_block: number | null; settle_block: number | null };
 type StoredStanding = Omit<StandingOrder, 'payer_name' | 'payee_name' | 'last_hash'> & { last_block: number | null };
 
@@ -232,7 +232,7 @@ async function opBonusLock(s: State, patron: Stored, player: number, organizer: 
   if (patron.pc < amt) throw new Error(`Insufficient PC balance (available: ${patron.pc.toFixed(2)}).`);
   const contract = byRole(s, 'contract');
   const b: StoredBonus = {
-    id: s.bonuses.length + 1, amount: amt, match: what, status: 'locked', won: null,
+    id: s.bonuses.length + 1, amount: amt, match: what, status: 'locked', won: null, cancel_requested_by: null, cancel_requested_at: null,
     patron_id: patron.id, player_id: player, organizer_id: organizer, created_at: now(), settled_at: null, lock_block: null, settle_block: null,
   };
   s.bonuses.push(b);
@@ -250,7 +250,7 @@ async function opBonusSettle(s: State, id: number, pay: boolean, won: boolean | 
   const to = byId(s, pay ? b.player_id : b.patron_id)!;
   contract.pc = round2(contract.pc - b.amount);
   to.pc = round2(to.pc + b.amount);
-  const why = pay ? ': match won, paid to player' : won === false ? ': match lost, refunded' : ': cancelled by patron, refunded';
+  const why = pay ? ': match won, paid to player' : won === false ? ': match lost, refunded' : ': cancelled by patron and player, refunded';
   const t = await append(s, pay ? 'release' : 'refund', contract.id, to.id, b.amount, 0, `Win bonus #${b.id}${why}`);
   Object.assign(b, { status: pay ? 'paid' : 'refunded', won, settled_at: now(), settle_block: t.block });
   return b;
@@ -407,6 +407,8 @@ function requestOut(s: State, r: StoredRequest): PayRequest {
 function bonusOut(s: State, b: StoredBonus): Bonus {
   const { lock_block, settle_block, ...rest } = b;
   return { ...rest, patron_name: name(s, b.patron_id), player_name: name(s, b.player_id), organizer_name: name(s, b.organizer_id),
+    cancel_requested_by: b.cancel_requested_by ?? null, cancel_requested_at: b.cancel_requested_at ?? null,
+    cancel_requested_by_name: b.cancel_requested_by ? name(s, b.cancel_requested_by) : null,
     lock_hash: hashOf(s, lock_block), settle_hash: hashOf(s, settle_block) };
 }
 function standingOut(s: State, o: StoredStanding): StandingOrder {
@@ -738,8 +740,23 @@ export function createLocalApi(): Api {
     bonusCancel: (token, id) => tx(token, async (s, acc) => {
       const b = s.bonuses.find((x) => x.id === id);
       if (!b) throw new Error('Win bonus not found.');
-      if (b.patron_id !== acc.id) throw new Error(`Only the patron can cancel win bonus #${b.id}.`);
+      // A locked bonus is a promise: it can only be stopped if patron and player both agree.
+      if (b.patron_id !== acc.id && b.player_id !== acc.id) throw new Error(`Only the patron and the player of win bonus #${b.id} can cancel it.`);
+      if (b.status !== 'locked') throw new Error(`Win bonus #${b.id} is already ${b.status}.`);
+      if (!b.cancel_requested_by) {
+        Object.assign(b, { cancel_requested_by: acc.id, cancel_requested_at: now() });
+        return bonusOut(s, b);
+      }
+      if (b.cancel_requested_by === acc.id) throw new Error(`You have already asked to cancel win bonus #${b.id}. The other side has to confirm.`);
       return bonusOut(s, await opBonusSettle(s, id, false, null));
+    }),
+    bonusKeep: (token, id) => tx(token, async (s, acc) => {
+      const b = s.bonuses.find((x) => x.id === id);
+      if (!b) throw new Error('Win bonus not found.');
+      if (b.patron_id !== acc.id && b.player_id !== acc.id) throw new Error(`Only the patron and the player of win bonus #${b.id} can do this.`);
+      if (b.status !== 'locked' || !b.cancel_requested_by) throw new Error(`There is no open cancellation request for win bonus #${b.id}.`);
+      Object.assign(b, { cancel_requested_by: null, cancel_requested_at: null });
+      return bonusOut(s, b);
     }),
     async standings(token) {
       const { s, acc } = await auth(token);

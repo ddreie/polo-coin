@@ -26,7 +26,9 @@ otherwise the contract refunds the buyer at the next call that touches escrows (
 Vets sign up with licence number, licensing authority, liability insurer and a declaration of independence; only the
 treasury (`admin`) verifies them, never the partner bank. Each vet's public track record (`polo.vet_stats`: reports, passed/failed,
 missed deadlines, value examined) is shown when choosing or accepting a vet. Win bonus: the patron locks PC for a player; the named
-organiser (role `organizer`) records won/lost and the contract pays or refunds. Standing orders pay weekly/monthly;
+organiser (role `organizer`) records won/lost and the contract pays or refunds. Once locked, the bonus can only be
+cancelled if patron and player agree (`api_bonus_cancel`: first call asks, the other party's call confirms;
+`api_bonus_keep` declines or withdraws). Standing orders pay weekly/monthly;
 due instalments run when the payer's wallet refreshes (`api_standing_run_due`). Transaction monitoring (`polo.aml_check`, inside `polo.op_transfer`): a transfer is held in the compliance wallet
 (username `compliance`, role `contract`) only if it is unusually large (> 50,000 and > 3x the sender's largest earlier
 payment), a pass-through (forwards >= 80% of what came in from others in 24 h, from 10,000) or split payments (several to

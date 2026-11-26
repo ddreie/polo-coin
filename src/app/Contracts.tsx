@@ -100,15 +100,29 @@ function BonusCard({ b }: { b: Bonus }) {
   const { t } = useT();
   const { busy, error, run } = useSubmit();
   const isOrg = b.organizer_id === account.id && account.kyc === 'verified';
-  const isPatron = b.patron_id === account.id;
-  const status = b.status === 'locked' ? t('Locked') : b.status === 'paid' ? t('Paid to player') : t('Refunded');
+  const isPatron = b.patron_id === account.id && account.kyc === 'verified';
+  const isPlayer = b.player_id === account.id && account.kyc === 'verified';
+  const isParty = isPatron || isPlayer;
+  const other = isPatron ? b.player_name : b.patron_name;
+  const asked = b.cancel_requested_by;          // who asked to cancel, if anyone
+  const askedByMe = asked === account.id;
+  const status = b.status === 'locked' ? (asked ? t('Cancellation requested') : t('Locked'))
+    : b.status === 'paid' ? t('Paid to player') : t('Refunded');
   const result = (won: boolean) => run(async () => {
     const r = await api.bonusResult(token, b.id, won);
     toast.ok(`Win bonus #${b.id} settled`, r.status === 'paid'
       ? `The contract paid PC ${money(b.amount)} to ${b.player_name} automatically.`
       : `Match lost. PC ${money(b.amount)} went back to ${b.patron_name}.`);
   });
-  const cancel = () => run(async () => { await api.bonusCancel(token, b.id); toast.ok(`Win bonus #${b.id} cancelled`, `PC ${money(b.amount)} are back in your wallet.`); });
+  const cancel = () => run(async () => {
+    const r = await api.bonusCancel(token, b.id);
+    if (r.status === 'refunded') toast.ok(t('Win bonus #{n} cancelled', { n: b.id }), t('Both sides agreed. PC {x} went back to {name}.', { x: money(b.amount), name: b.patron_name }));
+    else toast.ok(t('Cancellation requested'), t('{name} has to confirm. Until then the bonus stays locked and the result still counts.', { name: other }));
+  });
+  const keep = () => run(async () => {
+    await api.bonusKeep(token, b.id);
+    toast.ok(askedByMe ? t('Request withdrawn') : t('Bonus kept'), t('The bonus stays locked until the organiser records the result.'));
+  });
 
   return (
     <article className={`panel escrow-card escrow-${b.status === 'paid' ? 'released' : b.status}`}>
@@ -126,17 +140,29 @@ function BonusCard({ b }: { b: Bonus }) {
       </dl>
       <p className="escrow-meta muted">
         {b.status === 'locked'
-          ? <>{t('Waiting for the result')} · locked {timeAgo(b.created_at)}</>
-          : <>{b.won === true ? t('Match won') : b.won === false ? t('Match lost') : 'Cancelled by the patron'} · settled {b.settled_at ? timeAgo(b.settled_at) : ''}
+          ? <>{asked ? t('{name} asked to cancel the bonus', { name: b.cancel_requested_by_name ?? '' }) : t('Waiting for the result')} · locked {timeAgo(b.created_at)}</>
+          : <>{b.won === true ? t('Match won') : b.won === false ? t('Match lost') : t('Cancelled by patron and player')} · settled {b.settled_at ? timeAgo(b.settled_at) : ''}
               {b.settle_hash && <> · tx <code title={b.settle_hash}>{shortHash(b.settle_hash)}</code></>}</>}
       </p>
-      {b.status === 'locked' && (isOrg || isPatron) && (
+      {b.status === 'locked' && isParty && (
+        <p className="escrow-deadline">
+          {!asked ? t('This bonus is a binding promise. It can only be cancelled if {a} and {b} both agree.', { a: b.patron_name, b: b.player_name })
+            : askedByMe ? t('You asked to cancel. {name} has to confirm, until then the result still counts.', { name: other })
+            : t('{name} asked to cancel this bonus. If you agree, PC {x} go back to {p}.', { name: other, x: money(b.amount), p: b.patron_name })}
+        </p>
+      )}
+      {b.status === 'locked' && (isOrg || isParty) && (
         <div className="escrow-actions">
           {isOrg && <>
             <button className="btn btn-accent btn-small" disabled={busy} onClick={() => result(true)}>{t('Record: won')}</button>
             <button className="btn btn-ghost btn-small" disabled={busy} onClick={() => result(false)}>{t('Record: lost')}</button>
           </>}
-          {isPatron && <button className="btn btn-ghost btn-small" disabled={busy} onClick={cancel}>{t('Cancel and refund')}</button>}
+          {isParty && !asked && <button className="btn btn-ghost btn-small" disabled={busy} onClick={cancel}>{t('Ask to cancel')}</button>}
+          {isParty && asked && askedByMe && <button className="btn btn-ghost btn-small" disabled={busy} onClick={keep}>{t('Withdraw request')}</button>}
+          {isParty && asked && !askedByMe && <>
+            <button className="btn btn-accent btn-small" disabled={busy} onClick={cancel}>{t('Agree to cancel')}</button>
+            <button className="btn btn-ghost btn-small" disabled={busy} onClick={keep}>{t('Keep the bonus')}</button>
+          </>}
         </div>
       )}
       {error && <p className="form-error" role="alert">{error}</p>}
